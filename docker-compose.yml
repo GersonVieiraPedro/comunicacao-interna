@@ -1,0 +1,28 @@
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "LocalDev_Password1"
+    ports:
+      - "1433:1433"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P LocalDev_Password1 -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      retries: 12
+    volumes:
+      - sf_sql_dev:/var/opt/mssql
+
+  db_test:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "LocalDev_Password1"
+    ports:
+      - "1434:1433"
+    volumes:
+      - sf_sql_test:/var/opt/mssql
+
+volumes:
+  sf_sql_dev:
+  sf_sql_test:

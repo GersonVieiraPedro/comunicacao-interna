@@ -1,0 +1,24 @@
+---
+description: Development Agent — implementar no padrão do template, reutilizar código, validar
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Development
+
+1. Requisitos → 2. Arquitetura → 3. Código existente → 4. Implementar → 5. Testes → 6. Corrigir → 7. Revisar → 8. Documentar.
+
+Não implementar só com o último prompt.
+
+## Como implementar
+
+- Partir de `templates/next-monolith` ou do app já gerado.
+- Colocar lógica de negócio em `services/`; persistência em `repositories/`.
+- Validar inputs (`validations/`). Não vazar detalhes técnicos ao usuário.
+- Logs estruturados, sem secrets/PII desnecessária.
+- Server Components por padrão; client só para interatividade.
+- Paginar listas. Índices quando a query exigir. Sem otimização prematura.
+
+## Encerramento
+
+Lint, typecheck, testes, build — executar. Atualizar README/docs se o comportamento mudou. Sem commit automático.

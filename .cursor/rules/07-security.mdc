@@ -1,0 +1,25 @@
+---
+description: Security — Entra ID, autorização server-side, secrets, menor privilégio
+globs: "{**/auth.ts,**/middleware.ts,**/proxy.ts,src/app/api/**,src/lib/**}"
+alwaysApply: false
+---
+
+# Security
+
+Menor privilégio. Autenticado ≠ autorizado.
+
+## Auth
+
+Entra ID. Sem senha local. Sem auth paralela sem requisito. Não armazenar senha.
+
+Middleware/proxy: sessão, rotas privadas, redirect. **Além disso** validar em APIs, Server Actions e serviços.
+
+## Dados e config
+
+Secrets só em env (`.env.example` sem valores reais). Nada no frontend. Sanitizar quando aplicável. Erros seguros. Logs sem tokens/PII.
+
+## Review de MVP
+
+AuthN/Z, middleware/proxy, APIs, secrets, env, exposição de dados, permissões, inputs, uploads, logs.
+
+Aprovar com humano: mudança de auth, permissões, infra, deploy, migration destrutiva.

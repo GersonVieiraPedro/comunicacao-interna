@@ -1,0 +1,23 @@
+---
+description: Deployment — CI/CD, Azure, migrations de produção e variáveis
+globs: "{.github/**,Dockerfile,docker-compose.yml,docs/deployment.md}"
+alwaysApply: false
+---
+
+# Deployment
+
+Fluxo: Git → PR → checks → build → testes → deploy → **migration** → produção.
+
+## Obrigatório
+
+- App preparada para CI (workflow no template).
+- Migration é passo explícito do deploy. Nunca aplicar em produção sem compreender o impacto.
+- Env de produção fora do Git. Documentar variáveis em `.env.example` + `docs/deployment.md`.
+- Integração Azure + Entra ID documentada.
+- Deploy de produção exige aprovação humana.
+
+## Validar antes de “pronto para deploy”
+
+Build, env, migrations, config, dependências, Azure, Entra ID, processo escrito.
+
+Não declarar MVP pronto sem o checklist em `docs/workflows/mvp-ready.md`.

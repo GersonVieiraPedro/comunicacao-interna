@@ -1,0 +1,13 @@
+---
+description: UI/UX — Design System Meta RH (MIV), Lucide, layout e login
+globs: "**/*.{tsx,css}"
+alwaysApply: false
+---
+
+# UI/UX
+
+Identidade Meta RH. Ver `design-system/brand.md` na fábrica.
+
+- Barlow + roxo `#470082` + spark contido + Lucide
+- Colaborador: bottom nav no mobile; desktop com sidebar de marca
+- Login com painel de marca

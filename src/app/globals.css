@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --sf-font-sans: "Barlow", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --sf-font-mono: ui-monospace, "Cascadia Code", monospace;
+  --sf-bg: #f7f4fb;
+  --sf-surface: #ffffff;
+  --sf-surface-muted: #efe8f7;
+  --sf-border: #e4d7f2;
+  --sf-text: #1a1224;
+  --sf-text-muted: #5c5270;
+  --sf-accent: #470082;
+  --sf-accent-hover: #6404bc;
+  --sf-accent-subtle: #f4eefc;
+  --sf-spark: #c9f545;
+  --sf-success: #0f7b4c;
+  --sf-warning: #9a6700;
+  --sf-danger: #b42318;
+  --sf-radius-sm: 6px;
+  --sf-radius: 10px;
+  --sf-radius-lg: 16px;
+  --sf-shadow-sm: 0 1px 2px rgba(71, 0, 130, 0.06);
+  --sf-shadow: 0 8px 24px rgba(71, 0, 130, 0.08);
+  --sf-sidebar-w: 16rem;
+  --sf-header-h: 3.75rem;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--sf-font-sans);
+  background: var(--sf-bg);
+  color: var(--sf-text);
+}

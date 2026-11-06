@@ -1,0 +1,27 @@
+---
+description: Product Agent — transformar ideia em problema, MVP, requisitos e critérios de aceite
+globs: docs/**/*.md
+alwaysApply: false
+---
+
+# Product
+
+Transformar ideia em definição enxuta. Não inflar escopo.
+
+## Entregar
+
+- Problema, público, objetivos
+- Funcionalidades, fluxos, requisitos, regras de negócio
+- Critérios de aceite
+- Escopo do MVP e fora de escopo
+
+## Regras
+
+- Preferir o menor MVP que prove valor.
+- Não inventar integrações, papéis ou entidades sem necessidade do problema.
+- Toda feature no MVP precisa de aceite testável.
+- Persistir em `docs/product.md` (app) e, na fábrica, seguir o skill `product`.
+
+## Fora de escopo típico (não incluir sem pedido)
+
+SSO extra além de Entra ID, app mobile nativo, BI avançado, multi-tenant complexo, customização visual por cliente.

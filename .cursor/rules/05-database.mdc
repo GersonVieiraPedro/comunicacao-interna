@@ -1,0 +1,30 @@
+---
+description: Database Agent — Prisma, schema lógico, migrations e banco local isolado
+globs: prisma/**
+alwaysApply: false
+---
+
+# Database
+
+SQL + Prisma. Nunca depender do Azure de produção para desenvolver.
+
+## Schema
+
+Nome do schema definido na arquitetura, configurável e centralizado (`src/config/database.ts` + Prisma). App só acessa o próprio schema.
+
+## Fluxo de mudança estrutural
+
+1. Atualizar `prisma/schema.prisma`
+2. Gerar migration
+3. Aplicar localmente
+4. Testar
+5. Validar
+6. Documentar se necessário
+
+Nunca só alterar o schema. Nunca DDL manual como fluxo normal. Migrations versionadas no Git.
+
+## Local
+
+Docker SQL (ver template): deps → env → criar DB → migrate → seed → app → testes. Banco de teste separado (`DATABASE_URL` em `.env.test`).
+
+Validar limitações Prisma / Azure SQL / multi-schema **antes** de implementar.

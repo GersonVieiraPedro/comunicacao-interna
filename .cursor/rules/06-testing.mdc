@@ -1,0 +1,21 @@
+---
+description: QA — unitário, integração, Playwright E2E; executar de verdade antes de concluir
+globs: "{tests,e2e,src}/**/*.{test,spec}.{ts,tsx}"
+alwaysApply: false
+---
+
+# Testing / QA
+
+Funcionalidade não está pronta só porque o código existe. QA procura problemas; não confirma o desenvolvimento.
+
+## Cobertura mínima
+
+- Unitário: regras, validações, transformações
+- Integração: serviços, banco, APIs, auth quando aplicável
+- E2E (Playwright): login, fluxo principal, operações essenciais
+
+## Encerrar tarefa
+
+Executar lint, typecheck, testes, build, E2E se aplicável. Nunca inventar resultados. Nunca dizer que testou sem rodar.
+
+Critérios de aceite do Product são a referência. Incluir vazios, erro, autorização negada.

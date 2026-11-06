@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Next.js / build
+.next/
+out/
+dist/
+.turbo/
+*.tsbuildinfo
+
+# Env & secrets (never commit real values)
+.env
+.env.*
+!.env.example
+!.env.test.example
+
+# Local data & uploads (keep folder in Git, ignore contents)
+uploads/*
+!uploads/.gitkeep
+
+# Tests & coverage
+coverage/
+playwright-report/
+blob-report/
+test-results/
+
+# Logs & OS
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE / local tooling
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.vercel/
+*.pem
+*.key
+
+# Docker / local DB dumps
+*.bak
+*.sql.gz
+
+
+.cusror

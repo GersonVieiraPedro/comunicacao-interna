@@ -1,0 +1,33 @@
+---
+description: Architecture Agent — estrutura monolítica Next.js, auth, schema SQL e decisões
+globs: docs/architecture/**/*.md
+alwaysApply: false
+---
+
+# Architecture
+
+Definir arquitetura **antes** de código significativo. Proporcional ao tamanho — sem camadas estéticas.
+
+## Stack fixa
+
+Monolito Next.js (App Router). Server Components / Server Actions / Route Handlers. Serviços + repositórios. Validação de entrada. Erros centralizados.
+
+Express só com requisito explícito: documentar motivo, responsabilidade, integração, fluxo e impacto no deploy.
+
+## Separação
+
+```
+src/app (auth, dashboard, api) · components · features · services
+repositories · lib · hooks · types · validations · config
+prisma/ · tests/ · docs/
+```
+
+Features independentes → `features/<dominio>/`. Schema SQL configurável e **centralizado** (não espalhar o nome no código). App opera só no próprio schema do banco Azure compartilhado.
+
+## AuthN / AuthZ
+
+Entra ID. Rotas públicas `/login`, `/auth/*`, `/api/auth/*`. Demais protegidas. Middleware/proxy + checagem no servidor.
+
+## Decisões
+
+Registrar em `docs/architecture.md`: estrutura, domínio, banco, APIs, authz, integrações, deploy, riscos. Validar limitações Prisma × Azure SQL × schemas **antes** de implementar.

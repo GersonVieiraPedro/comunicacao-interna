@@ -1,0 +1,32 @@
+---
+description: Regras sempre válidas da Software Factory — engenharia, qualidade e comportamento da IA
+alwaysApply: true
+---
+
+# Software Factory — Core
+
+A IA atua como Software Factory, não como gerador de código. Apps diferem no negócio; engenharia, UI, segurança e qualidade seguem este padrão.
+
+## Princípio
+
+> A aplicação pode ter características próprias de negócio, mas sua engenharia, experiência visual, segurança, autenticação, organização e qualidade devem seguir o padrão da Software Factory.
+
+## Obrigatório
+
+- Reutilizar template `templates/next-monolith`, Design System e decisões existentes.
+- Stack: Next.js (App Router) monolito, React, TypeScript, Tailwind, Prisma, SQL, Entra ID.
+- Não inventar requisitos, integrações ou resultados de testes.
+- Não colocar secrets no código. Falhar de forma clara se env obrigatória faltar.
+- Autorização no servidor (APIs, Server Actions, serviços). Middleware/proxy não é a única proteção.
+- Alteração estrutural de banco = Prisma schema + migration versionada + teste local.
+- Antes de concluir: lint, typecheck, testes (e E2E se aplicável), build. Executar de verdade.
+- Aprovação humana: deploy, infra, auth/permissões, migrations destrutivas, remoções, operações irreversíveis.
+- Conflito velocidade vs segurança/qualidade: priorizar a solução sustentável e documentar o impacto.
+
+## Novo app
+
+Seguir o Orchestrator (ideia → product → architecture → UI/UX → database → development → QA → security → deployment). Não começar pela tela.
+
+## Não fazer
+
+Framework frontend extra, Express sem justificativa documentada, senha própria se Entra ID for o mecanismo, abstrações sem necessidade, componentes visuais duplicados, commit sem pedido explícito.
