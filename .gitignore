@@ -45,3 +45,5 @@ Desktop.ini
 
 
 .cusror
+# Push CI after: gh auth refresh -s workflow
+.github/workflows/
