@@ -44,6 +44,7 @@ Entra (opcional): redirect `https://<dominio>/api/auth/callback/microsoft-entra-
 | `NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY` | mesma pública |
 | `WEB_PUSH_SUBJECT` | `mailto:...` |
 | `CRON_SECRET` | bearer do cron |
+| `AZURE_BLOB_TOKEN` | URL do container Blob com SAS (upload/leitura de imagens). Sem isso na Vercel, imagens caem em data URL. |
 
 ## Celular (PWA)
 

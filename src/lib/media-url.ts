@@ -1,4 +1,4 @@
-/** Resolve URL exibível de capa/mídia (disco local, Blob ou data URL). */
+/** Resolve URL exibível de capa/mídia (disco, Azure, Blob público ou data URL). */
 export function mediaSrc(pathOrUrl: string | null | undefined): string | null {
   if (!pathOrUrl) return null;
   if (
@@ -9,5 +9,6 @@ export function mediaSrc(pathOrUrl: string | null | undefined): string | null {
   ) {
     return pathOrUrl;
   }
-  return `/api/media/${pathOrUrl.replace(/^\/+/, "")}`;
+  const relative = pathOrUrl.replace(/^azure:/, "").replace(/^\/+/, "");
+  return `/api/media/${relative}`;
 }

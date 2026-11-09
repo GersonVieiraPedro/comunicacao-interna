@@ -22,6 +22,8 @@ const schema = z.object({
   NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY: z.string().optional().default(""),
   CRON_SECRET: z.string().optional().default(""),
   FILE_STORAGE_DIR: z.string().optional().default("uploads"),
+  /** URL do container Azure Blob com SAS (ex.: https://acct.blob.core.windows.net/container?sv=...&sig=...). */
+  AZURE_BLOB_TOKEN: z.string().optional().default(""),
 });
 
 export type Env = z.infer<typeof schema>;
@@ -48,6 +50,7 @@ export function getEnv(): Env {
     NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY,
     CRON_SECRET: process.env.CRON_SECRET,
     FILE_STORAGE_DIR: process.env.FILE_STORAGE_DIR,
+    AZURE_BLOB_TOKEN: process.env.AZURE_BLOB_TOKEN,
   });
   if (!parsed.success) {
     const fields = parsed.error.flatten().fieldErrors;
