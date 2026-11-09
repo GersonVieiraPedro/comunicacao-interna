@@ -1,29 +1,42 @@
 import { AuthError } from "next-auth";
-import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
 import { signIn } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+function isNextRedirect(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  if (!("digest" in error) || typeof (error as { digest?: unknown }).digest !== "string") {
+    return false;
+  }
+  return (error as { digest: string }).digest.startsWith("NEXT_REDIRECT");
+}
 
 export function CredentialsSignInForm({ error }: { error?: string | null }) {
   async function login(formData: FormData) {
     "use server";
     const email = String(formData.get("email") ?? "");
     const password = String(formData.get("password") ?? "");
+
     try {
-      await signIn("credentials", {
+      // redirect:false evita que o NEXT_REDIRECT do Auth.js vaze para o error.tsx
+      const result = await signIn("credentials", {
         email,
         password,
-        redirectTo: "/",
+        redirect: false,
       });
+      if (result?.error) {
+        redirect("/login?error=credentials");
+      }
     } catch (err) {
-      // signIn bem-sucedido lança redirect — precisa propagar
-      if (isRedirectError(err)) throw err;
+      if (isNextRedirect(err)) throw err;
       if (err instanceof AuthError) {
         redirect("/login?error=credentials");
       }
       throw err;
     }
+
+    redirect("/");
   }
 
   return (
