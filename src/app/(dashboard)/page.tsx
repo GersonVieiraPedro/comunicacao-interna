@@ -11,10 +11,15 @@ import { Megaphone } from "lucide-react";
 export default async function HomePage() {
   const session = await auth();
   const data = await getHomeData(session?.user);
+  const firstName = session?.user?.name?.split(/\s+/)[0] ?? "olá";
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
-      <PageHeader title="Início" description="Comunicados publicados para todos os colaboradores." />
+    <div className="mx-auto flex max-w-3xl flex-col gap-7">
+      <PageHeader
+        eyebrow="Central"
+        title={`Oi, ${firstName}`}
+        description="Aqui ficam os avisos importantes da empresa — claros, no celular e no computador."
+      />
       <InstallAppCard />
       <PushPrompt />
       {data.popup ? (
@@ -29,10 +34,15 @@ export default async function HomePage() {
         />
       ) : null}
       {data.featured ? (
-        <section aria-labelledby="destaque">
-          <h2 id="destaque" className="mb-3 text-sm font-medium text-fg-muted">
-            Destaque
-          </h2>
+        <section aria-labelledby="destaque" className="space-y-3">
+          <div className="flex items-end justify-between gap-3">
+            <h2 id="destaque" className="text-sm font-semibold text-fg">
+              Em destaque
+            </h2>
+            {data.latest.length > 0 ? (
+              <p className="text-xs text-fg-muted">{data.latest.length} recentes abaixo</p>
+            ) : null}
+          </div>
           <CommunicationCard
             featured
             id={data.featured.id}
@@ -53,11 +63,11 @@ export default async function HomePage() {
         />
       )}
       {data.latest.length > 0 ? (
-        <section aria-labelledby="ultimos">
-          <h2 id="ultimos" className="mb-3 text-sm font-medium text-fg-muted">
+        <section aria-labelledby="ultimos" className="space-y-3">
+          <h2 id="ultimos" className="text-sm font-semibold text-fg">
             Últimos comunicados
           </h2>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3.5">
             {data.latest.map((item) => (
               <CommunicationCard
                 key={item.id}

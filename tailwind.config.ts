@@ -33,6 +33,7 @@ const config: Config = {
       boxShadow: {
         sm: "var(--sf-shadow-sm)",
         DEFAULT: "var(--sf-shadow)",
+        lg: "var(--sf-shadow-lg)",
       },
     },
   },

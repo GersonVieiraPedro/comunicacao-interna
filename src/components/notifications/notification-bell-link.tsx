@@ -6,7 +6,7 @@ export function NotificationBellLink({ count }: { count: number }) {
   return (
     <Link
       href="/notificacoes"
-      className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-2 text-sm text-accent hover:bg-muted"
+      className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-full px-2 text-sm text-accent transition-colors hover:bg-accent-subtle"
       aria-label={count ? `${count} notificações não lidas` : "Notificações"}
     >
       <Icon icon={Bell} className="h-5 w-5" />

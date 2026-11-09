@@ -4,6 +4,7 @@ import { RichText } from "@/features/communications/rich-text";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { Card } from "@/components/ui/card";
 import { CommunicationPriority } from "@/types/communication";
 import { markNotificationsForCommunication } from "@/repositories/notification-repository";
 
@@ -15,9 +16,9 @@ export default async function CommunicationDetailPage({ params }: { params: Prom
   await markNotificationsForCommunication(userId, id);
 
   return (
-    <article className="mx-auto flex max-w-2xl flex-col gap-4">
+    <article className="mx-auto flex max-w-2xl flex-col gap-5">
       <Breadcrumbs items={[{ href: "/", label: "Início" }, { label: item.title }]} />
-      <PageHeader title={item.title} description={item.subtitle ?? item.summary} />
+      <PageHeader title={item.title} description={item.subtitle ?? undefined} eyebrow={item.category.name} />
       <div className="flex flex-wrap gap-2">
         <Badge tone="info">{item.category.name}</Badge>
         {item.priority === CommunicationPriority.URGENT ? <Badge tone="danger">Urgente</Badge> : null}
@@ -25,15 +26,28 @@ export default async function CommunicationDetailPage({ params }: { params: Prom
       </div>
       {item.coverPath ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={`/api/media/${item.coverPath}`} alt="" className="max-h-72 w-full rounded object-cover" />
-      ) : null}
+        <img
+          src={`/api/media/${item.coverPath}`}
+          alt=""
+          className="max-h-80 w-full rounded-2xl object-cover shadow-sm"
+        />
+      ) : (
+        <div className="h-2 w-24 rounded-full bg-spark" aria-hidden />
+      )}
       <p className="text-sm text-fg-muted">
         {item.publishedAt
           ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "long", timeStyle: "short" }).format(item.publishedAt)
           : null}{" "}
         · {item.author.displayName}
       </p>
-      <RichText html={item.bodyHtml} />
+      {item.summary ? (
+        <Card className="border-accent/15 bg-accent-subtle/60">
+          <p className="text-sm font-medium leading-relaxed text-fg">{item.summary}</p>
+        </Card>
+      ) : null}
+      <Card className="p-5 md:p-7">
+        <RichText html={item.bodyHtml} />
+      </Card>
     </article>
   );
 }

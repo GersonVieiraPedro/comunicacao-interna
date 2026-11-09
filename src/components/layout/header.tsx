@@ -7,10 +7,13 @@ import { Search, User } from "lucide-react";
 import Link from "next/link";
 
 export function Header({ user, unreadNotifications = 0 }: { user: SessionUser; unreadNotifications?: number }) {
+  const firstName = user.name?.split(/\s+/)[0] ?? user.name;
+
   return (
-    <header className="flex h-[var(--sf-header-h)] items-center justify-between gap-3 border-b border-border bg-surface px-4">
-      <Link href="/" className="text-sm font-semibold text-accent md:hidden">
-        Central
+    <header className="sticky top-0 z-30 flex h-[var(--sf-header-h)] items-center justify-between gap-3 border-b border-border/80 bg-surface/90 px-4 backdrop-blur-md md:px-6">
+      <Link href="/" className="min-w-0 md:hidden">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent/70">Meta RH</p>
+        <p className="truncate text-sm font-semibold text-fg">Central</p>
       </Link>
       <form action="/historico" className="hidden min-w-0 flex-1 md:block" role="search">
         <label className="sr-only" htmlFor="header-search">
@@ -21,20 +24,23 @@ export function Header({ user, unreadNotifications = 0 }: { user: SessionUser; u
           <input
             id="header-search"
             name="q"
-            placeholder="Buscar comunicados"
-            className="w-full rounded-md border border-border bg-bg py-2 pl-9 pr-3 text-sm outline-none focus:border-accent"
+            placeholder="Buscar comunicados…"
+            className="w-full rounded-full border border-border bg-bg py-2.5 pl-10 pr-4 text-sm outline-none transition-shadow placeholder:text-fg-muted/80 focus:border-accent focus:shadow-sm"
           />
         </div>
       </form>
       <div className="ml-auto flex items-center gap-2">
         <NotificationBellLink count={unreadNotifications} />
-        <span className="hidden items-center gap-2 text-sm text-fg sm:flex">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-subtle text-accent">
-            <Icon icon={User} />
+        <div className="hidden items-center gap-2 rounded-full border border-border bg-bg py-1 pl-1 pr-3 sm:flex">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">
+            {(firstName?.[0] ?? "U").toUpperCase()}
           </span>
-          {user.name}
-        </span>
-        <span className="sr-only">{appConfig.name}</span>
+          <span className="max-w-[9rem] truncate text-sm font-medium text-fg">{firstName}</span>
+          <span className="sr-only">
+            <Icon icon={User} />
+            {appConfig.name}
+          </span>
+        </div>
         <SignOutButton />
       </div>
     </header>
