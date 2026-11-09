@@ -50,7 +50,7 @@ export default async function CommunicationDetailPage({ params }: { params: Prom
           </Card>
         </div>
       ) : null}
-      <Card className="overflow-hidden p-0">
+      <Card className="p-5 md:p-7">
         <RichText html={item.bodyHtml} />
       </Card>
     </article>
