@@ -24,11 +24,11 @@ npm run dev
 
 Gere VAPID (`npx web-push generate-vapid-keys`) e preencha as chaves. `AUTH_SECRET` ≥ 16 caracteres.
 
-Testes sem Entra (somente `next dev` + localhost): em `.env.local` defina `AUTH_DEV_BYPASS=true`. Em `/login`, use **Entrar como colaborador (local)** ou **Entrar como comunicador (local)**. O banco local precisa estar no ar. Não use essa flag em produção.
+**Login:** e-mail/senha (JWT Auth.js). Após o seed: `comunicador1@empresa.exemplo` / `SEED_DEFAULT_PASSWORD` (default local `ChangeMe_Comunicacao1`). Entra ID é opcional. Bypass de persona (`AUTH_DEV_BYPASS=true`) só em localhost.
 
 ## Papéis
 
-Colaborador (padrão) e Comunicador (grupo Entra `AUTH_COMMUNICATOR_GROUP_IDS`).
+Colaborador (padrão) e Comunicador (`user_roles` / seed).
 
 ## Docs
 

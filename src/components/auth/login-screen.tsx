@@ -1,3 +1,4 @@
+import { CredentialsSignInForm } from "@/components/auth/credentials-sign-in-form";
 import { EntraSignInButton } from "@/components/auth/entra-sign-in-button";
 import { LocalDevSignInButtons } from "@/components/auth/local-dev-sign-in-buttons";
 import { Icon } from "@/components/ui/icon";
@@ -5,7 +6,7 @@ import { Sparkles } from "lucide-react";
 import { appConfig } from "@/config/app";
 import { isEntraConfigured, isLocalDevBypassEnabled } from "@/lib/dev-auth";
 
-export function LoginScreen() {
+export function LoginScreen({ error }: { error?: string | null }) {
   const entra = isEntraConfigured();
   const dev = isLocalDevBypassEnabled();
 
@@ -35,22 +36,25 @@ export function LoginScreen() {
           <div className="rounded-lg border border-border bg-surface p-8 shadow">
             <h2 className="text-lg font-semibold text-fg">Entrar</h2>
             <p className="mt-1 text-sm text-fg-muted">
-              {entra
-                ? "Use a conta corporativa Microsoft. Não há senha nesta aplicação."
-                : dev
-                  ? "Ambiente local: entre com um perfil de teste. Entra ID não está configurado."
-                  : "Microsoft Entra ID ainda não está configurado neste ambiente."}
+              Use o e-mail e a senha fornecidos pela equipe de comunicação.
             </p>
-            <div className="mt-6 space-y-3">
-              <EntraSignInButton />
+            <div className="mt-6 space-y-4">
+              <CredentialsSignInForm error={error} />
+              {entra ? (
+                <div className="space-y-3 border-t border-border pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+                    Ou conta Microsoft
+                  </p>
+                  <EntraSignInButton />
+                </div>
+              ) : null}
               <LocalDevSignInButtons />
-              {!entra && !dev ? (
-                <p className="text-sm text-fg-muted" role="status">
-                  Na Vercel, defina AUTH_MICROSOFT_ENTRA_ID_ID, AUTH_MICROSOFT_ENTRA_ID_SECRET,
-                  AUTH_MICROSOFT_ENTRA_ID_ISSUER e AUTH_URL (URL HTTPS do deploy). Login local
-                  (AUTH_DEV_BYPASS) só funciona em localhost — nunca em produção.
+              {dev ? (
+                <p className="text-xs text-fg-muted">
+                  Bypass local ativo (somente desenvolvimento).
                 </p>
               ) : null}
+            </div>
           </div>
         </div>
       </section>

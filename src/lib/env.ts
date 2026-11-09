@@ -42,19 +42,7 @@ export function getEnv(): Env {
   ) {
     throw new Error("Login local (AUTH_DEV_BYPASS / AUTH_ALLOW_DEV_LOGIN) não pode ser true em produção.");
   }
-  const entraReady =
-    Boolean(cached.AUTH_MICROSOFT_ENTRA_ID_ID) &&
-    Boolean(cached.AUTH_MICROSOFT_ENTRA_ID_SECRET) &&
-    Boolean(cached.AUTH_MICROSOFT_ENTRA_ID_ISSUER);
-  const bypass =
-    (cached.AUTH_DEV_BYPASS === "true" || cached.AUTH_ALLOW_DEV_LOGIN === "true") &&
-    cached.NODE_ENV !== "production" &&
-    (cached.AUTH_URL.includes("localhost") || cached.AUTH_URL.includes("127.0.0.1"));
-  if (!entraReady && !bypass) {
-    throw new Error(
-      "Configure AUTH_MICROSOFT_ENTRA_ID_* ou AUTH_DEV_BYPASS=true com AUTH_URL em localhost (somente desenvolvimento).",
-    );
-  }
+  // Auth padrão: e-mail/senha (Credentials + JWT). Entra ID permanece opcional.
   return cached;
 }
 

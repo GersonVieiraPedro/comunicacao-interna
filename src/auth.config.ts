@@ -15,6 +15,7 @@ const entraProviders = isEntraConfigured()
 
 export const authConfig = {
   trustHost: true,
+  session: { strategy: "jwt" },
   providers: entraProviders,
   pages: { signIn: "/login" },
   callbacks: {

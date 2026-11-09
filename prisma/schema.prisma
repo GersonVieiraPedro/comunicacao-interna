@@ -8,12 +8,15 @@ datasource db {
   schemas  = ["comunicacao"]
 }
 
-/// Projeção local do usuário Entra ID. Sem senha.
+/// Usuário da app. Login interno (e-mail/senha) ou Entra opcional.
+/// entraObjectId = subject estável (OID Entra, ou "cred:<email>", ou local-dev-*).
 model User {
   id            String   @id @default(uuid())
   entraObjectId String   @unique
-  email         String
+  email         String   @unique
   displayName   String
+  /// bcrypt hash; null = só SSO / bypass local sem senha
+  passwordHash  String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -26,7 +29,6 @@ model User {
   auditEvents           AuditEvent[]
   notificationDeliveries NotificationDelivery[]
 
-  @@index([email])
   @@map("users")
   @@schema("comunicacao")
 }

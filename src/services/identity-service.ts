@@ -1,7 +1,12 @@
 import { AppRole, isAppRole, type AppRole as Role } from "@/types/roles";
 import { communicatorGroupIds, getEnv } from "@/lib/env";
 import { LOCAL_DEV_PERSONAS, type LocalDevPersona } from "@/lib/dev-auth";
-import { findUserByEntraId, upsertEntraUser } from "@/repositories/user-repository";
+import { verifyPassword } from "@/lib/password";
+import {
+  findUserByEmail,
+  findUserByEntraId,
+  upsertEntraUser,
+} from "@/repositories/user-repository";
 import type { SessionUser } from "@/lib/authz";
 
 function uniqueRoles(roles: Role[]): Role[] {
@@ -57,5 +62,24 @@ export async function syncSessionUser(input: {
     email: input.email,
     name: input.displayName,
     roles: stored?.roles.map((item) => item.role).filter(isAppRole) ?? roles,
+  };
+}
+
+/** Login interno e-mail/senha. Retorna null se inválido (mensagem genérica no Auth.js). */
+export async function authenticatePasswordUser(
+  email: string,
+  password: string,
+): Promise<SessionUser | null> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized || !password) return null;
+  const stored = await findUserByEmail(normalized);
+  if (!stored?.passwordHash) return null;
+  const ok = await verifyPassword(password, stored.passwordHash);
+  if (!ok) return null;
+  return {
+    id: stored.id,
+    email: stored.email,
+    name: stored.displayName,
+    roles: stored.roles.map((item) => item.role).filter(isAppRole),
   };
 }

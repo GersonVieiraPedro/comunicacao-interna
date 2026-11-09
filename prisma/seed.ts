@@ -1,8 +1,12 @@
 import { PrismaClient } from "@prisma/client";
 import { AppRole } from "../src/types/roles";
 import { CommunicationPriority, CommunicationStatus } from "../src/types/communication";
+import { credentialsSubject, hashPassword } from "../src/lib/password";
 
 const prisma = new PrismaClient();
+
+/** Senha padrão do seed — sobrescreva com SEED_DEFAULT_PASSWORD em produção. */
+const DEFAULT_SEED_PASSWORD = process.env.SEED_DEFAULT_PASSWORD || "ChangeMe_Comunicacao1";
 
 const categories = [
   { slug: "noticias", name: "Notícias", sortOrder: 1 },
@@ -50,27 +54,35 @@ async function main() {
     },
   ];
 
+  const passwordHash = await hashPassword(DEFAULT_SEED_PASSWORD);
   const people = [...collaborators, ...communicators];
   const users = [];
   for (const person of people) {
+    const email = person.email.trim().toLowerCase();
+    const subject = credentialsSubject(email);
     const roles =
       person.role === AppRole.COMMUNICATOR
         ? [{ role: AppRole.COLLABORATOR }, { role: AppRole.COMMUNICATOR }]
         : [{ role: AppRole.COLLABORATOR }];
     const user = await prisma.user.upsert({
-      where: { entraObjectId: person.entraObjectId },
-      update: { email: person.email, displayName: person.displayName },
-      create: {
-        entraObjectId: person.entraObjectId,
-        email: person.email,
+      where: { email },
+      update: {
         displayName: person.displayName,
+        passwordHash,
+        entraObjectId: subject,
+      },
+      create: {
+        entraObjectId: subject,
+        email,
+        displayName: person.displayName,
+        passwordHash,
         roles: { create: roles },
       },
     });
     users.push(user);
   }
 
-  const author = users.find((item) => item.entraObjectId === "seed-com-1")!;
+  const author = users.find((item) => item.email === "comunicador1@empresa.exemplo")!;
   const now = new Date();
   const publishedAt = new Date(now.getTime() - 2 * 60 * 60 * 1000);
 
@@ -181,7 +193,7 @@ async function main() {
   const published = await prisma.communication.findMany({
     where: { status: CommunicationStatus.PUBLISHED },
   });
-  const firstColab = users.find((item) => item.entraObjectId === "seed-colab-1")!;
+  const firstColab = users.find((item) => item.email === "colaborador1@empresa.exemplo")!;
   if (published[0]) {
     await prisma.communicationRead.upsert({
       where: {
@@ -206,23 +218,34 @@ async function main() {
     },
   });
 
-  const oid = process.env.SEED_ENTRA_OBJECT_ID;
-  const email = process.env.SEED_ADMIN_EMAIL;
-  const name = process.env.SEED_ADMIN_NAME ?? "Comunicador local";
-  if (oid && email) {
+  const adminEmail = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || DEFAULT_SEED_PASSWORD;
+  const adminName = process.env.SEED_ADMIN_NAME ?? "Administrador";
+  if (adminEmail) {
+    const adminHash = await hashPassword(adminPassword);
+    const subject = credentialsSubject(adminEmail);
     await prisma.user.upsert({
-      where: { entraObjectId: oid },
+      where: { email: adminEmail },
       create: {
-        entraObjectId: oid,
-        email,
-        displayName: name,
+        entraObjectId: subject,
+        email: adminEmail,
+        displayName: adminName,
+        passwordHash: adminHash,
         roles: {
           create: [{ role: AppRole.COLLABORATOR }, { role: AppRole.COMMUNICATOR }],
         },
       },
-      update: { email, displayName: name },
+      update: {
+        displayName: adminName,
+        passwordHash: adminHash,
+        entraObjectId: subject,
+      },
     });
   }
+
+  console.log(
+    `Seed OK. Login interno: comunicador1@empresa.exemplo / (SEED_DEFAULT_PASSWORD). Troque a senha em produção.`,
+  );
 }
 
 main()

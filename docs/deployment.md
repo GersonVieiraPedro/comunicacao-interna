@@ -20,15 +20,11 @@ Piloto/produção: Azure SQL (ou SQL alcançável), schema **`comunicacao`**, `n
 npx prisma migrate deploy
 ```
 
-## Entra ID
+## Auth
 
-Na app registration, incluir redirect:
+Padrão: e-mail/senha (JWT Auth.js). Após migrate: `npx prisma db seed` com `SEED_ADMIN_EMAIL` + `SEED_ADMIN_PASSWORD`.
 
-- `https://<seu-dominio-vercel>/api/auth/callback/microsoft-entra-id`
-
-E definir `AUTH_URL=https://<seu-dominio-vercel>`.
-
-Grupos de comunicador: `AUTH_COMMUNICATOR_GROUP_IDS` (object IDs).
+Entra (opcional): redirect `https://<dominio>/api/auth/callback/microsoft-entra-id`.
 
 **Proibido em produção:** `AUTH_DEV_BYPASS` / `AUTH_ALLOW_DEV_LOGIN`.
 
@@ -41,10 +37,8 @@ Grupos de comunicador: `AUTH_COMMUNICATOR_GROUP_IDS` (object IDs).
 | `DATABASE_URL` | Azure SQL / SQL alcançável |
 | `AUTH_SECRET` | ≥ 16 chars |
 | `AUTH_URL` | URL HTTPS do deploy |
-| `AUTH_MICROSOFT_ENTRA_ID_ID` | App registration |
-| `AUTH_MICROSOFT_ENTRA_ID_SECRET` | Secret Entra |
-| `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | `https://login.microsoftonline.com/<tenant>/v2.0` |
-| `AUTH_COMMUNICATOR_GROUP_IDS` | Object IDs (opcional no 1º smoke) |
+| `SEED_DEFAULT_PASSWORD` / `SEED_ADMIN_*` | Só no job de seed (não precisa na Vercel runtime) |
+| `AUTH_MICROSOFT_ENTRA_ID_*` | Opcional — login interno é o padrão |
 | `WEB_PUSH_VAPID_PUBLIC_KEY` | `npx web-push generate-vapid-keys` |
 | `WEB_PUSH_VAPID_PRIVATE_KEY` | idem |
 | `NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY` | mesma pública |

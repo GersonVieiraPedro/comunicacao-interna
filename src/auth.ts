@@ -1,9 +1,14 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { logger } from "@/lib/logger";
-import { syncLocalDevUser, syncSessionUser } from "@/services/identity-service";
+import {
+  authenticatePasswordUser,
+  syncLocalDevUser,
+  syncSessionUser,
+} from "@/services/identity-service";
+import { findUserByEmail } from "@/repositories/user-repository";
 import type { SessionUser } from "@/lib/authz";
-import { AppRole } from "@/types/roles";
+import { AppRole, isAppRole } from "@/types/roles";
 import { authConfig } from "@/auth.config";
 import { isLocalDevBypassEnabled, LOCAL_DEV_PERSONAS, type LocalDevPersona } from "@/lib/dev-auth";
 
@@ -26,6 +31,22 @@ function localPersona(value: unknown): LocalDevPersona {
   return value === "communicator" ? "communicator" : "collaborator";
 }
 
+const credentialsProvider = Credentials({
+  id: "credentials",
+  name: "E-mail e senha",
+  credentials: {
+    email: { label: "E-mail", type: "email" },
+    password: { label: "Senha", type: "password" },
+  },
+  async authorize(credentials) {
+    const email = typeof credentials?.email === "string" ? credentials.email : "";
+    const password = typeof credentials?.password === "string" ? credentials.password : "";
+    const user = await authenticatePasswordUser(email, password);
+    if (!user) return null;
+    return { id: user.id, email: user.email, name: user.name };
+  },
+});
+
 const localDevProvider = Credentials({
   id: "local-dev",
   name: "Local development",
@@ -46,11 +67,27 @@ const localDevProvider = Credentials({
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
-  providers: [...authConfig.providers, localDevProvider],
+  providers: [...authConfig.providers, credentialsProvider, localDevProvider],
   callbacks: {
     ...authConfig.callbacks,
     async jwt({ token, account, profile, user }) {
       const typed = token as typeof token & TokenWithUser;
+      if (account?.provider === "credentials" && user?.email) {
+        try {
+          const stored = await findUserByEmail(user.email);
+          if (stored) {
+            typed.appUser = {
+              id: stored.id,
+              email: stored.email,
+              name: stored.displayName,
+              roles: stored.roles.map((r) => r.role).filter(isAppRole),
+            };
+          }
+        } catch (error) {
+          logger.error("credentials_session_load_failed", { error: String(error) });
+        }
+        return typed;
+      }
       if (account?.provider === "local-dev" && user?.id) {
         try {
           const persona: LocalDevPersona =
