@@ -37,17 +37,20 @@ export function LoginScreen() {
             <p className="mt-1 text-sm text-fg-muted">
               {entra
                 ? "Use a conta corporativa Microsoft. Não há senha nesta aplicação."
-                : "Ambiente local: entre com um perfil de teste. Entra ID não está configurado."}
+                : dev
+                  ? "Ambiente local: entre com um perfil de teste. Entra ID não está configurado."
+                  : "Microsoft Entra ID ainda não está configurado neste ambiente."}
             </p>
             <div className="mt-6 space-y-3">
               <EntraSignInButton />
               <LocalDevSignInButtons />
               {!entra && !dev ? (
                 <p className="text-sm text-fg-muted" role="status">
-                  Configure o Entra ID ou, só em localhost, AUTH_DEV_BYPASS=true.
+                  Na Vercel, defina AUTH_MICROSOFT_ENTRA_ID_ID, AUTH_MICROSOFT_ENTRA_ID_SECRET,
+                  AUTH_MICROSOFT_ENTRA_ID_ISSUER e AUTH_URL (URL HTTPS do deploy). Login local
+                  (AUTH_DEV_BYPASS) só funciona em localhost — nunca em produção.
                 </p>
               ) : null}
-            </div>
           </div>
         </div>
       </section>
