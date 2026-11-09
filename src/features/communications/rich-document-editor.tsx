@@ -10,6 +10,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Placeholder from "@tiptap/extension-placeholder";
 import {
+  ALargeSmall,
   AlignCenter,
   AlignLeft,
   AlignRight,
@@ -117,10 +118,13 @@ function EditorToolbar({
         <Icon icon={Heading3} className="h-4 w-4" />
       </ToolbarButton>
 
-      <label className="ml-1 inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border border-border bg-surface px-2 text-xs text-fg-muted">
-        <span className="whitespace-nowrap">Tamanho</span>
+      <label
+        className="ml-1 inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border border-border bg-surface px-2 text-fg-muted hover:bg-muted"
+        title="Tamanho da fonte"
+      >
+        <Icon icon={ALargeSmall} className="h-4 w-4 text-fg" />
         <select
-          className="h-7 border-0 bg-transparent text-xs text-fg outline-none"
+          className="h-7 max-w-[5.5rem] border-0 bg-transparent text-xs text-fg outline-none"
           defaultValue=""
           aria-label="Tamanho da fonte"
           onChange={(event) => {
