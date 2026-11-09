@@ -47,7 +47,7 @@ export function CredentialsSignInForm({ error }: { error?: string | null }) {
         label="Senha"
         autoComplete="current-password"
         required
-        minLength={8}
+        minLength={5}
         error={error ? "E-mail ou senha inválidos." : undefined}
       />
       <Button type="submit" className="w-full">
