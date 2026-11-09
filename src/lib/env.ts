@@ -30,7 +30,25 @@ let cached: Env | undefined;
 
 export function getEnv(): Env {
   if (cached) return cached;
-  const parsed = schema.safeParse(process.env);
+  // Referências estáticas: o bundler de Server Actions da Vercel só injeta envs
+  // mencionadas como process.env.NOME_LITERAL (não via process.env genérico).
+  const parsed = schema.safeParse({
+    ...process.env,
+    NODE_ENV: process.env.NODE_ENV,
+    NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME,
+    APP_DB_SCHEMA: process.env.APP_DB_SCHEMA,
+    DATABASE_URL: process.env.DATABASE_URL,
+    AUTH_SECRET: process.env.AUTH_SECRET,
+    AUTH_URL: process.env.AUTH_URL,
+    AUTH_DEV_BYPASS: process.env.AUTH_DEV_BYPASS,
+    AUTH_ALLOW_DEV_LOGIN: process.env.AUTH_ALLOW_DEV_LOGIN,
+    WEB_PUSH_VAPID_PUBLIC_KEY: process.env.WEB_PUSH_VAPID_PUBLIC_KEY,
+    WEB_PUSH_VAPID_PRIVATE_KEY: process.env.WEB_PUSH_VAPID_PRIVATE_KEY,
+    WEB_PUSH_SUBJECT: process.env.WEB_PUSH_SUBJECT,
+    NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY,
+    CRON_SECRET: process.env.CRON_SECRET,
+    FILE_STORAGE_DIR: process.env.FILE_STORAGE_DIR,
+  });
   if (!parsed.success) {
     const fields = parsed.error.flatten().fieldErrors;
     throw new Error(`Variáveis de ambiente inválidas ou ausentes: ${JSON.stringify(fields)}`);

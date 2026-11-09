@@ -1,5 +1,4 @@
 import webPush from "web-push";
-import { getEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { cleanEnvSecret, cleanVapidSubject } from "@/lib/vapid";
 import { defaultPushCopy } from "@/domain/communication-rules";
@@ -12,36 +11,37 @@ import {
 import { logDelivery } from "@/repositories/notification-repository";
 import { findCommunicationById } from "@/repositories/communication-repository";
 
-export function vapidPublicKey(): string {
-  const env = getEnv();
-  return (
-    cleanEnvSecret(env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY) ||
-    cleanEnvSecret(env.WEB_PUSH_VAPID_PUBLIC_KEY)
+/** Lê VAPID com nomes literais (necessário no bundle de Server Actions na Vercel). */
+function readVapidConfig() {
+  const publicKey = cleanEnvSecret(
+    process.env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY || process.env.WEB_PUSH_VAPID_PUBLIC_KEY,
   );
+  const privateKey = cleanEnvSecret(process.env.WEB_PUSH_VAPID_PRIVATE_KEY);
+  const subject = cleanVapidSubject(process.env.WEB_PUSH_SUBJECT);
+  return { publicKey, privateKey, subject };
+}
+
+export function vapidPublicKey(): string {
+  return readVapidConfig().publicKey;
 }
 
 function configureVapid(): { ok: true } | { ok: false; reason: string } {
   try {
-    const env = getEnv();
-    const publicKey = vapidPublicKey();
-    const privateKey = cleanEnvSecret(env.WEB_PUSH_VAPID_PRIVATE_KEY);
-    const subject = cleanVapidSubject(env.WEB_PUSH_SUBJECT);
+    const { publicKey, privateKey, subject } = readVapidConfig();
     if (!publicKey || !privateKey) {
-      return { ok: false, reason: "VAPID_NOT_CONFIGURED" };
-    }
-    // Validação mínima de tamanho (URL-safe base64 VAPID)
-    if (publicKey.length < 80 || privateKey.length < 40) {
-      logger.warn("vapid_keys_look_truncated", {
-        publicLen: publicKey.length,
-        privateLen: privateKey.length,
+      logger.warn("vapid_missing", {
+        hasPublic: Boolean(publicKey),
+        hasPrivate: Boolean(privateKey),
+        subject,
       });
-      return { ok: false, reason: "VAPID_INVALID" };
+      return { ok: false, reason: "VAPID_NOT_CONFIGURED" };
     }
     webPush.setVapidDetails(subject, publicKey, privateKey);
     return { ok: true };
   } catch (error) {
-    logger.error("vapid_configure_failed", { error: String(error) });
-    return { ok: false, reason: "VAPID_INVALID" };
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error("vapid_configure_failed", { error: message });
+    return { ok: false, reason: `VAPID_INVALID:${message.slice(0, 120)}` };
   }
 }
 
@@ -121,7 +121,7 @@ export async function sendWebPushForPublication(communicationId: string) {
       communicationId,
       channel: NotificationChannel.WEB_PUSH,
       status: DeliveryStatus.SKIPPED,
-      errorCode: vapid.reason,
+      errorCode: vapid.reason.slice(0, 180),
     });
     logger.warn("web_push_skipped", { communicationId, reason: vapid.reason });
     return { sent: 0, failed: 0, skipped: true as const };

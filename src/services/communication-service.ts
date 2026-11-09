@@ -38,7 +38,11 @@ import {
 import { DeliveryStatus, NotificationChannel } from "@/types/communication";
 import { sendWebPushForPublication } from "@/services/push-service";
 
-async function fanOutPublication(communicationId: string) {
+async function fanOutPublication(
+  communicationId: string,
+  options: { sendPush?: boolean } = {},
+) {
+  const sendPush = options.sendPush ?? true;
   const communication = await findCommunicationById(communicationId);
   const fallback = defaultPushCopy();
   const title = communication?.title?.slice(0, 120) || fallback.title;
@@ -55,6 +59,7 @@ async function fanOutPublication(communicationId: string) {
     channel: NotificationChannel.IN_APP,
     status: DeliveryStatus.SENT,
   });
+  if (!sendPush) return;
   try {
     await sendWebPushForPublication(communicationId);
   } catch (error) {
@@ -72,6 +77,7 @@ async function markPublished(
   id: string,
   actorId: string,
   publishedAt: Date,
+  options: { sendPush?: boolean } = {},
 ) {
   const updated = await updateCommunication(id, {
     status: CommunicationStatus.PUBLISHED,
@@ -84,7 +90,7 @@ async function markPublished(
     actorUserId: actorId,
     communicationId: id,
   });
-  await fanOutPublication(id);
+  await fanOutPublication(id, options);
   return updated;
 }
 
@@ -149,7 +155,8 @@ export async function publishNow(user: SessionUser | undefined, id: string) {
   if (existing.status !== CommunicationStatus.DRAFT && existing.status !== CommunicationStatus.SCHEDULED) {
     throw new ValidationError("Este comunicado não pode ser publicado.");
   }
-  return markPublished(id, actor.id, new Date());
+  // Push vai pela API /api/push/dispatch (mesmo runtime do teste que funciona na Vercel).
+  return markPublished(id, actor.id, new Date(), { sendPush: false });
 }
 
 export async function schedulePublication(user: SessionUser | undefined, id: string, scheduledPublishAt: Date) {

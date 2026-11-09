@@ -33,12 +33,28 @@ export function CommunicationEditor({
   const [error, setError] = useState<string | null>(null);
   const [bodyHtml, setBodyHtml] = useState(initial?.bodyHtml ?? "<p></p>");
 
-  async function run(action: (formData: FormData) => Promise<{ ok: boolean; message?: string; id?: string }>, formData: FormData) {
+  async function run(
+    action: (formData: FormData) => Promise<{ ok: boolean; message?: string; id?: string }>,
+    formData: FormData,
+    options?: { dispatchPush?: boolean },
+  ) {
     setError(null);
     const result = await action(formData);
     if (!result.ok) {
       setError(result.message ?? "Não foi possível salvar.");
       return;
+    }
+    // Mesmo caminho do "teste" (API Route) — evita Server Action sem envs VAPID na Vercel
+    if (options?.dispatchPush && result.id) {
+      try {
+        await fetch("/api/push/dispatch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ communicationId: result.id }),
+        });
+      } catch {
+        // publicação já ok; push é best-effort
+      }
     }
     if (result.id) router.push(`/admin/comunicados/${result.id}`);
     else router.push("/admin/comunicados");
@@ -117,7 +133,7 @@ export function CommunicationEditor({
           type="button"
           onClick={(event) => {
             const form = (event.currentTarget as HTMLButtonElement).form;
-            if (form) void run(actionPublish, new FormData(form));
+            if (form) void run(actionPublish, new FormData(form), { dispatchPush: true });
           }}
         >
           Publicar
