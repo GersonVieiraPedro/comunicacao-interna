@@ -73,7 +73,7 @@ export async function authenticatePasswordUser(
   const normalized = email.trim().toLowerCase();
   if (!normalized || !password) return null;
   const stored = await findUserByEmail(normalized);
-  if (!stored?.passwordHash) return null;
+  if (!stored?.passwordHash || !stored.active) return null;
   const ok = await verifyPassword(password, stored.passwordHash);
   if (!ok) return null;
   return {

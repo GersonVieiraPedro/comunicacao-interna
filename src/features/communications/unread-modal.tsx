@@ -39,6 +39,9 @@ export function UnreadCommunicationModal({
       </div>
       <h3 className="mt-3 text-base font-semibold">{communication.title}</h3>
       <p className="mt-2 text-sm text-fg-muted">{communication.summary}</p>
+      <p className="mt-3 text-xs text-fg-muted">
+        Abrir registra que você viu. “Marcar como lido” confirma ciência.
+      </p>
       <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
         <Button variant="secondary" onClick={() => setOpen(false)}>
           Ver depois
@@ -46,7 +49,7 @@ export function UnreadCommunicationModal({
         <Button variant="secondary" onClick={() => router.push(`/comunicados/${communication.id}`)}>
           Abrir
         </Button>
-        <Button onClick={onUnderstand}>Entendi</Button>
+        <Button onClick={onUnderstand}>Marcar como lido</Button>
       </div>
     </Modal>
   );

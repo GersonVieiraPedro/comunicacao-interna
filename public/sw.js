@@ -13,6 +13,7 @@ self.addEventListener("push", (event) => {
     body: "Confira o novo comunicado publicado.",
     url: "/",
     priority: "NORMAL",
+    communicationId: null,
   };
   try {
     if (event.data) data = { ...data, ...event.data.json() };
@@ -29,7 +30,10 @@ self.addEventListener("push", (event) => {
       body: data.body || "Confira o novo comunicado publicado.",
       icon: "/icon.svg",
       badge: "/icon.svg",
-      data: { url: data.url || "/" },
+      data: {
+        url: data.url || "/",
+        communicationId: data.communicationId || null,
+      },
       tag,
       renotify: true,
       // explícito: tocar som padrão do sistema
@@ -41,18 +45,36 @@ self.addEventListener("push", (event) => {
   );
 });
 
+async function trackNotificationOpen(communicationId) {
+  if (!communicationId) return;
+  try {
+    await fetch("/api/notifications/open", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ communicationId }),
+    });
+  } catch {
+    // tracking best-effort
+  }
+}
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = event.notification.data?.url || "/";
+  const communicationId = event.notification.data?.communicationId || null;
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      for (const client of clients) {
-        if ("focus" in client) {
-          client.navigate(url);
-          return client.focus();
+    Promise.all([
+      trackNotificationOpen(communicationId),
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+        for (const client of clients) {
+          if ("focus" in client) {
+            client.navigate(url);
+            return client.focus();
+          }
         }
-      }
-      return self.clients.openWindow(url);
-    }),
+        return self.clients.openWindow(url);
+      }),
+    ]),
   );
 });

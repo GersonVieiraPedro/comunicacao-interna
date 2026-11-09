@@ -3,6 +3,7 @@ import { requireCommunicator, requireUser } from "@/lib/authz";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { sanitizeCommunicationHtml } from "@/lib/sanitize-html";
 import {
+  computeObservabilityMetrics,
   computeReadMetrics,
   defaultPushCopy,
   isVisibleToCollaborator,
@@ -12,30 +13,43 @@ import { assertFutureDate } from "@/lib/datetime";
 import { CommunicationStatus } from "@/types/communication";
 import { communicationInputSchema } from "@/validations/communication";
 import {
+  aggregateEngagementFunnel,
+  countAcknowledged,
   countByStatus,
   countEligibleCollaborators,
-  countReads,
+  countViews,
   createAudit,
   createCommunication,
   findCategoryById,
   findCommunicationById,
+  findRead,
   listAdmin,
   listCategories,
   listCollaboratorUserIds,
   listDueExpired,
   listDueScheduled,
   listPublishedForFeed,
+  listReaders,
   listScheduledAgenda,
   listUnreadEligible,
   lowestReadRate,
+  publicationsByDay,
   searchHistory,
   updateCommunication,
-  upsertRead,
+  upsertAcknowledge,
+  upsertView,
 } from "@/repositories/communication-repository";
 import {
+  countDeliveries,
+  countInAppNotifications,
+  countOpenedNotifications,
   createNotificationsForUsers,
+  logDeliveriesMany,
   logDelivery,
+  markNotificationOpenedByCommunication,
+  markNotificationsForCommunication,
 } from "@/repositories/notification-repository";
+import { countActiveUsers } from "@/repositories/user-repository";
 import { DeliveryStatus, NotificationChannel } from "@/types/communication";
 import { sendWebPushForPublication } from "@/services/push-service";
 
@@ -55,11 +69,14 @@ async function fanOutPublication(
     title,
     body,
   });
-  await logDelivery({
-    communicationId,
-    channel: NotificationChannel.IN_APP,
-    status: DeliveryStatus.SENT,
-  });
+  await logDeliveriesMany(
+    userIds.map((userId) => ({
+      communicationId,
+      userId,
+      channel: NotificationChannel.IN_APP,
+      status: DeliveryStatus.SENT,
+    })),
+  );
   if (!sendPush) return;
   try {
     await sendWebPushForPublication(communicationId);
@@ -248,7 +265,11 @@ export async function getHomeData(user: SessionUser | undefined) {
   const popup = selectUnreadPopup(unread);
   const featured = feed[0] ?? null;
   const latest = feed.slice(featured ? 1 : 0);
-  const readIds = new Set(feed.filter((item) => item.reads.length > 0).map((item) => item.id));
+  const readIds = new Set(
+    feed
+      .filter((item) => item.reads.some((read) => read.acknowledgedAt != null))
+      .map((item) => item.id),
+  );
   return { featured, latest, popup, readIds, unreadCount: unread.length };
 }
 
@@ -272,16 +293,39 @@ export async function getCommunicationForCollaborator(user: SessionUser | undefi
   const historyOk =
     item.status === CommunicationStatus.PUBLISHED || item.status === CommunicationStatus.EXPIRED;
   if (!visible && !historyOk) throw new NotFoundError("Comunicado não encontrado.");
-  return { item, userId: actor.id };
+  const read = await findRead(actor.id, id);
+  return {
+    item,
+    userId: actor.id,
+    acknowledged: Boolean(read?.acknowledgedAt),
+    viewed: Boolean(read),
+  };
 }
 
+/** Abertura do comunicado: visualização automática (não confirma ciência). */
+export async function recordView(user: SessionUser | undefined, communicationId: string) {
+  const actor = requireUser(user);
+  const item = await findCommunicationById(communicationId);
+  if (!item) throw new NotFoundError("Comunicado não encontrado.");
+  await upsertView(actor.id, communicationId, new Date());
+  await markNotificationOpenedByCommunication(actor.id, communicationId);
+  await createAudit({
+    action: "COMMUNICATION_VIEWED",
+    actorUserId: actor.id,
+    communicationId,
+  });
+  return { ok: true };
+}
+
+/** Confirmação explícita de ciência ("marcar como lido"). */
 export async function acknowledgeRead(user: SessionUser | undefined, communicationId: string) {
   const actor = requireUser(user);
   const item = await findCommunicationById(communicationId);
   if (!item) throw new NotFoundError("Comunicado não encontrado.");
-  await upsertRead(actor.id, communicationId, new Date());
+  await upsertAcknowledge(actor.id, communicationId, new Date());
+  await markNotificationsForCommunication(actor.id, communicationId);
   await createAudit({
-    action: "COMMUNICATION_VIEWED",
+    action: "COMMUNICATION_ACKNOWLEDGED",
     actorUserId: actor.id,
     communicationId,
   });
@@ -306,16 +350,22 @@ export async function getAdminAgenda(user: SessionUser | undefined) {
 export async function getAdminDashboard(user: SessionUser | undefined) {
   requireCommunicator(user);
   const eligible = await countEligibleCollaborators();
-  const [counts, lowest, agenda] = await Promise.all([
+  const activeUsers = await countActiveUsers();
+  const [counts, lowest, agenda, byDay, funnel] = await Promise.all([
     countByStatus(),
     lowestReadRate(eligible),
     listScheduledAgenda(new Date()),
+    publicationsByDay(14),
+    aggregateEngagementFunnel(eligible),
   ]);
   return {
     counts,
     eligible,
+    activeUsers,
     lowest,
-    agenda: agenda.slice(0, 5),
+    agenda: agenda.slice(0, 4),
+    byDay,
+    funnel,
     total: Object.values(counts).reduce((sum, value) => sum + value, 0),
   };
 }
@@ -325,8 +375,44 @@ export async function getCommunicationMetrics(user: SessionUser | undefined, id:
   const item = await findCommunicationById(id);
   if (!item) throw new NotFoundError("Comunicado não encontrado.");
   const eligibleCount = await countEligibleCollaborators();
-  const readCount = await countReads(id);
-  return { item, metrics: computeReadMetrics(eligibleCount, readCount) };
+  const [viewedCount, acknowledgedCount, openedCount, inAppCount, deliveryGroups, readers] =
+    await Promise.all([
+      countViews(id),
+      countAcknowledged(id),
+      countOpenedNotifications(id),
+      countInAppNotifications(id),
+      countDeliveries(id),
+      listReaders(id),
+    ]);
+  const deliveredInApp = deliveryGroups
+    .filter((row) => row.channel === NotificationChannel.IN_APP && row.status === DeliveryStatus.SENT)
+    .reduce((sum, row) => sum + row.count, 0);
+  const pushSent = deliveryGroups
+    .filter((row) => row.channel === NotificationChannel.WEB_PUSH && row.status === DeliveryStatus.SENT)
+    .reduce((sum, row) => sum + row.count, 0);
+  const pushFailed = deliveryGroups
+    .filter((row) => row.channel === NotificationChannel.WEB_PUSH && row.status === DeliveryStatus.FAILED)
+    .reduce((sum, row) => sum + row.count, 0);
+  const metrics = computeObservabilityMetrics({
+    eligibleCount,
+    deliveredCount: Math.max(deliveredInApp, inAppCount),
+    viewedCount,
+    openedCount,
+    acknowledgedCount,
+  });
+  return {
+    item,
+    metrics,
+    delivery: {
+      inApp: deliveredInApp || inAppCount,
+      pushSent,
+      pushFailed,
+      groups: deliveryGroups,
+    },
+    readers,
+    // compat antiga
+    legacy: computeReadMetrics(eligibleCount, acknowledgedCount),
+  };
 }
 
 export { listCategories };

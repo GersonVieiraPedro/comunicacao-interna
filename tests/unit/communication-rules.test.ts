@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   compareUnreadPopup,
+  computeObservabilityMetrics,
   computeReadMetrics,
   isVisibleToCollaborator,
   selectUnreadPopup,
@@ -85,6 +86,26 @@ describe("métricas", () => {
       readCount: 280,
       unreadCount: 120,
       percentRead: 70,
+    });
+  });
+
+  it("separa entrega, visualização, abertura e ciência", () => {
+    expect(
+      computeObservabilityMetrics({
+        eligibleCount: 100,
+        deliveredCount: 90,
+        viewedCount: 70,
+        openedCount: 60,
+        acknowledgedCount: 40,
+      }),
+    ).toMatchObject({
+      percentDelivered: 90,
+      percentViewed: 70,
+      percentOpened: 60,
+      percentAcknowledged: 40,
+      pendingAckCount: 60,
+      readCount: 40,
+      percentRead: 40,
     });
   });
 });

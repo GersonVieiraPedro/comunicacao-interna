@@ -12,6 +12,7 @@ export function NotificationList({
     title: string;
     body: string;
     readAt: Date | null;
+    openedAt: Date | null;
     communication: { id: string; title: string; priority: string };
   }>;
 }) {
@@ -23,17 +24,20 @@ export function NotificationList({
             <Link href={`/comunicados/${item.communication.id}`} className="font-medium text-accent">
               {item.communication.title}
             </Link>
-            {!item.readAt ? (
-              <button
-                type="button"
-                className="text-xs text-fg-muted underline"
-                onClick={() => void actionMarkNotification(item.id)}
-              >
-                Marcar como lida
-              </button>
-            ) : (
-              <span className="text-xs text-fg-muted">Lida</span>
-            )}
+            <div className="flex shrink-0 items-center gap-2 text-xs text-fg-muted">
+              {item.openedAt ? <span>Visualizada</span> : <span>Não aberta</span>}
+              {!item.readAt ? (
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() => void actionMarkNotification(item.id)}
+                >
+                  Marcar tratada
+                </button>
+              ) : (
+                <span>Tratada</span>
+              )}
+            </div>
           </div>
           <p className="text-sm text-fg-muted">{item.body}</p>
           {item.communication.priority === CommunicationPriority.URGENT ? (

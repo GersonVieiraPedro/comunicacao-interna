@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   description: "Central de Comunicação Interna — Meta RH",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Central", statusBarStyle: "default" },
+  icons: {
+    icon: "/logo-metarh-branco.ico",
+  }
 };
 
 export const viewport: Viewport = {

@@ -31,7 +31,11 @@ export function Header({ user, unreadNotifications = 0 }: { user: SessionUser; u
       </form>
       <div className="ml-auto flex items-center gap-2">
         <NotificationBellLink count={unreadNotifications} />
-        <div className="hidden items-center gap-2 rounded-full border border-border bg-bg py-1 pl-1 pr-3 sm:flex">
+        <Link
+          href="/configuracoes"
+          className="hidden items-center gap-2 rounded-full border border-border bg-bg py-1 pl-1 pr-3 transition hover:border-accent/30 sm:flex"
+          title="Perfil e configurações"
+        >
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">
             {(firstName?.[0] ?? "U").toUpperCase()}
           </span>
@@ -40,7 +44,7 @@ export function Header({ user, unreadNotifications = 0 }: { user: SessionUser; u
             <Icon icon={User} />
             {appConfig.name}
           </span>
-        </div>
+        </Link>
         <SignOutButton />
       </div>
     </header>

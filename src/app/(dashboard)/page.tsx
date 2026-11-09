@@ -19,7 +19,7 @@ export default async function HomePage() {
       <PageHeader
         eyebrow="Central"
         title={`Oi, ${firstName}`}
-        description="Aqui ficam os avisos importantes da empresa — claros, no celular e no computador."
+        description="Acesse aqui os comunicados publicados para você, onde quiser, no celular ou no computador."
       />
       <InstallAppCard />
       <PushPrompt />

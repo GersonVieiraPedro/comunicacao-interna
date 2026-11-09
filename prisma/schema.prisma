@@ -17,6 +17,8 @@ model User {
   displayName   String
   /// bcrypt hash; null = só SSO / bypass local sem senha
   passwordHash  String?
+  /// false = sem acesso (login bloqueado)
+  active        Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -114,14 +116,18 @@ model CommunicationRead {
   id              String        @id @default(uuid())
   userId          String
   communicationId String
+  /// Abriu o comunicado (automático)
   firstViewedAt   DateTime      @default(now())
   lastViewedAt    DateTime      @default(now())
   viewCount       Int           @default(1)
+  /// Confirmação explícita de ciência ("marcar como lido" / Entendi)
+  acknowledgedAt  DateTime?
   user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   communication   Communication @relation(fields: [communicationId], references: [id], onDelete: Cascade)
 
   @@unique([userId, communicationId])
   @@index([communicationId])
+  @@index([communicationId, acknowledgedAt])
   @@map("communication_reads")
   @@schema("comunicacao")
 }
@@ -152,6 +158,9 @@ model Notification {
   communicationId String
   title           String        @db.NVarChar(200)
   body            String        @db.NVarChar(500)
+  /// Clique/abertura da notificação (push ou lista)
+  openedAt        DateTime?
+  /// Marcada como tratada na lista (pode diferir do acknowledge do comunicado)
   readAt          DateTime?
   createdAt       DateTime      @default(now())
   user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -159,6 +168,7 @@ model Notification {
 
   @@index([userId, createdAt])
   @@index([userId, readAt])
+  @@index([communicationId, openedAt])
   @@map("notifications")
   @@schema("comunicacao")
 }

@@ -6,15 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { CommunicationStatus } from "@/types/communication";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
-import { CalendarClock, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { formatBrazilDateTime } from "@/lib/datetime";
+import { AdminDashboardCharts } from "@/features/admin/admin-dashboard-charts";
 
 export default async function AdminHomePage() {
   const session = await auth();
   const data = await getAdminDashboard(session?.user);
 
   const cards = [
-    { label: "Total", value: data.total, href: "/admin/comunicados" },
     {
       label: "Publicados",
       value: data.counts[CommunicationStatus.PUBLISHED] ?? 0,
@@ -30,49 +30,53 @@ export default async function AdminHomePage() {
       value: data.counts[CommunicationStatus.SCHEDULED] ?? 0,
       href: "/admin/agenda",
     },
-    { label: "Colaboradores", value: data.eligible, href: "/admin/comunicados" },
+    {
+      label: "Usuários ativos",
+      value: data.activeUsers,
+      href: "/admin/usuarios",
+    },
   ];
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Administração"
-        description="Publicação, agenda e leitura dos comunicados."
+        eyebrow="Admin"
+        title="Painel"
+        description="Visão geral de publicação e engajamento. Agenda e usuários ficam no menu lateral."
         actions={
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/admin/agenda"
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-fg hover:bg-muted"
-            >
-              <Icon icon={CalendarClock} />
-              Agenda
-            </Link>
-            <Link
-              href="/admin/comunicados/novo"
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover"
-            >
-              <Icon icon={Plus} />
-              Novo comunicado
-            </Link>
-          </div>
+          <Link
+            href="/admin/comunicados/novo"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover"
+          >
+            <Icon icon={Plus} />
+            Novo comunicado
+          </Link>
         }
       />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((card) => (
           <Link key={card.label} href={card.href}>
-            <Card className="transition hover:border-accent/30">
+            <Card className="h-full transition hover:border-accent/30">
               <p className="text-sm text-fg-muted">{card.label}</p>
-              <p className="mt-1 text-2xl font-semibold">{card.value}</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums">{card.value}</p>
             </Card>
           </Link>
         ))}
       </div>
 
+      <AdminDashboardCharts
+        statusCounts={data.counts}
+        byDay={data.byDay}
+        funnel={data.funnel}
+        lowest={data.lowest}
+      />
+
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-medium text-fg-muted">Próximos na agenda</h2>
-          <Link href="/admin/agenda" className="text-sm font-medium text-accent underline">
-            Ver agenda completa
+          <h2 className="text-sm font-semibold text-fg">Próximos na agenda</h2>
+          <Link href="/admin/agenda" className="text-sm font-medium text-accent hover:underline">
+            Ver agenda
           </Link>
         </div>
         {data.agenda.length === 0 ? (
@@ -80,7 +84,7 @@ export default async function AdminHomePage() {
             <p className="text-sm text-fg-muted">Nenhum comunicado agendado no momento.</p>
           </Card>
         ) : (
-          <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
+          <ul className="divide-y divide-border rounded-2xl border border-border bg-surface">
             {data.agenda.map((item) => (
               <li key={item.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
@@ -107,25 +111,6 @@ export default async function AdminHomePage() {
           </ul>
         )}
       </section>
-
-      <section>
-        <h2 className="mb-3 text-sm font-medium text-fg-muted">Menor taxa de visualização</h2>
-        <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
-          {data.lowest.map((item) => (
-            <li key={item.id} className="flex items-center justify-between px-4 py-3 text-sm">
-              <Link href={`/admin/comunicados/${item.id}`} className="text-accent hover:underline">
-                {item.title}
-              </Link>
-              <span>
-                {item.readCount} · {item.percent}%
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-      <Link href="/admin/comunicados" className="text-sm text-accent underline">
-        Ver todos os comunicados
-      </Link>
     </div>
   );
 }

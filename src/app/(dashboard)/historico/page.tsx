@@ -80,7 +80,7 @@ export default async function HistoryPage({
               summary={item.summary}
               category={item.category.name}
               publishedAt={item.publishedAt}
-              unread={item.reads.length === 0}
+              unread={!item.reads.some((read) => read.acknowledgedAt != null)}
               priority={item.priority}
               coverUrl={mediaSrc(item.coverPath)}
             />

@@ -61,6 +61,34 @@ export function computeReadMetrics(eligibleCount: number, readCount: number) {
   return { eligibleCount, readCount, unreadCount, percentRead };
 }
 
+export function computeObservabilityMetrics(input: {
+  eligibleCount: number;
+  deliveredCount: number;
+  viewedCount: number;
+  openedCount: number;
+  acknowledgedCount: number;
+}) {
+  const { eligibleCount, deliveredCount, viewedCount, openedCount, acknowledgedCount } = input;
+  const pct = (count: number) =>
+    eligibleCount === 0 ? 0 : Math.round((count / eligibleCount) * 100);
+  return {
+    eligibleCount,
+    deliveredCount,
+    viewedCount,
+    openedCount,
+    acknowledgedCount,
+    pendingAckCount: Math.max(0, eligibleCount - acknowledgedCount),
+    percentDelivered: pct(deliveredCount),
+    percentViewed: pct(viewedCount),
+    percentOpened: pct(openedCount),
+    percentAcknowledged: pct(acknowledgedCount),
+    // compat: "lidos" = ciência confirmada
+    readCount: acknowledgedCount,
+    unreadCount: Math.max(0, eligibleCount - acknowledgedCount),
+    percentRead: pct(acknowledgedCount),
+  };
+}
+
 export function defaultPushCopy() {
   return {
     title: "Nova comunicação interna",
