@@ -43,3 +43,6 @@ Desktop.ini
 *.bak
 *.sql.gz
 .cursor
+
+scripts/reset-users.ts
+scripts/test-web-push.ts
