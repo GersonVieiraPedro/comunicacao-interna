@@ -6,15 +6,17 @@ import {
   syncLocalDevUser,
   syncSessionUser,
 } from "@/services/identity-service";
-import { findUserByEmail } from "@/repositories/user-repository";
 import type { SessionUser } from "@/lib/authz";
-import { AppRole, isAppRole } from "@/types/roles";
+import { AppRole } from "@/types/roles";
 import { authConfig } from "@/auth.config";
 import { isLocalDevBypassEnabled, LOCAL_DEV_PERSONAS, type LocalDevPersona } from "@/lib/dev-auth";
 
 declare module "next-auth" {
   interface Session {
     user: SessionUser;
+  }
+  interface User {
+    roles?: SessionUser["roles"];
   }
 }
 
@@ -43,7 +45,7 @@ const credentialsProvider = Credentials({
     const password = typeof credentials?.password === "string" ? credentials.password : "";
     const user = await authenticatePasswordUser(email, password);
     if (!user) return null;
-    return { id: user.id, email: user.email, name: user.name };
+    return { id: user.id, email: user.email, name: user.name, roles: user.roles };
   },
 });
 
@@ -72,20 +74,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     ...authConfig.callbacks,
     async jwt({ token, account, profile, user }) {
       const typed = token as typeof token & TokenWithUser;
-      if (account?.provider === "credentials" && user?.email) {
-        try {
-          const stored = await findUserByEmail(user.email);
-          if (stored) {
-            typed.appUser = {
-              id: stored.id,
-              email: stored.email,
-              name: stored.displayName,
-              roles: stored.roles.map((r) => r.role).filter(isAppRole),
-            };
-          }
-        } catch (error) {
-          logger.error("credentials_session_load_failed", { error: String(error) });
-        }
+      if (account?.provider === "credentials" && user?.id) {
+        typed.appUser = {
+          id: user.id,
+          email: user.email ?? "",
+          name: user.name ?? user.email ?? "",
+          roles: user.roles?.length ? user.roles : [AppRole.COLLABORATOR],
+        };
         return typed;
       }
       if (account?.provider === "local-dev" && user?.id) {

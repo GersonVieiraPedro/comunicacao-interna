@@ -1,4 +1,5 @@
 import { AuthError } from "next-auth";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
 import { signIn } from "@/auth";
 import { Button } from "@/components/ui/button";
@@ -10,8 +11,14 @@ export function CredentialsSignInForm({ error }: { error?: string | null }) {
     const email = String(formData.get("email") ?? "");
     const password = String(formData.get("password") ?? "");
     try {
-      await signIn("credentials", { email, password, redirectTo: "/" });
+      await signIn("credentials", {
+        email,
+        password,
+        redirectTo: "/",
+      });
     } catch (err) {
+      // signIn bem-sucedido lança redirect — precisa propagar
+      if (isRedirectError(err)) throw err;
       if (err instanceof AuthError) {
         redirect("/login?error=credentials");
       }
@@ -24,7 +31,10 @@ export function CredentialsSignInForm({ error }: { error?: string | null }) {
       <Input
         id="email"
         name="email"
-        type="email"
+        type="text"
+        inputMode="email"
+        autoCapitalize="none"
+        autoCorrect="off"
         label="E-mail"
         autoComplete="username"
         required
