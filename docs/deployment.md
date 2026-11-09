@@ -46,6 +46,12 @@ Entra (opcional): redirect `https://<dominio>/api/auth/callback/microsoft-entra-
 | `CRON_SECRET` | bearer do cron |
 | `AZURE_BLOB_TOKEN` | URL do container Blob com SAS (upload/leitura de imagens). Sem isso na Vercel, imagens caem em data URL. |
 
+### Mídia (limites)
+
+- Upload do usuário: até **10 MB** (JPEG/PNG/WebP).
+- O cliente comprime antes se o arquivo passar de ~3,5 MB (limite prático de payload da function).
+- O servidor redimensiona (capa 1920px / inline 1600px) e grava em **WebP** via `sharp`.
+
 ## Celular (PWA)
 
 1. Abrir a URL HTTPS no Chrome (Android) ou Safari (iOS).

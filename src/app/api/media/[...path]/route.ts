@@ -7,8 +7,8 @@ import { jsonError } from "@/lib/http";
 import { NotFoundError } from "@/lib/errors";
 
 function contentTypeFor(relative: string) {
-  if (relative.endsWith(".png")) return "image/png";
   if (relative.endsWith(".webp")) return "image/webp";
+  if (relative.endsWith(".png")) return "image/png";
   if (relative.endsWith(".jpg") || relative.endsWith(".jpeg")) return "image/jpeg";
   return "application/octet-stream";
 }

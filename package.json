@@ -41,6 +41,7 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "sanitize-html": "^2.17.0",
+    "sharp": "^0.35.5",
     "web-push": "^3.6.7",
     "zod": "^3.25.76"
   },
@@ -51,6 +52,7 @@
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "@types/sanitize-html": "^2.16.0",
+    "@types/sharp": "^0.31.1",
     "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.35.0",

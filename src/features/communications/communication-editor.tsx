@@ -13,8 +13,11 @@ import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/cn";
 import { parseDateTimeLocalInput } from "@/lib/datetime";
 import { mediaSrc } from "@/lib/media-url";
+import { prepareImageUpload } from "@/lib/prepare-image-upload";
+import { MediaLimitsHint } from "@/components/media/media-limits-hint";
 import { composeDocument, parseDocument } from "@/features/communications/document-html";
 import { RichDocumentEditor } from "@/features/communications/rich-document-editor";
+import { formatBytes } from "@/lib/image-limits";
 import {
   actionCancel,
   actionCancelSchedule,
@@ -99,6 +102,7 @@ export function CommunicationEditor({
   const [priority, setPriority] = useState(initial?.priority ?? CommunicationPriority.NORMAL);
   const [coverPath, setCoverPath] = useState(initial?.coverPath ?? "");
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [coverUploadInfo, setCoverUploadInfo] = useState<string | null>(null);
   const [advancedSource, setAdvancedSource] = useState(false);
   const parsed = useMemo(() => parseDocument(initial?.bodyHtml ?? "<p></p>"), [initial?.bodyHtml]);
   const [headerHtml, setHeaderHtml] = useState(parsed.headerHtml);
@@ -176,17 +180,31 @@ export function CommunicationEditor({
     if (!file) return;
     setUploadingCover(true);
     setError(null);
+    setCoverUploadInfo(null);
     try {
+      const prepared = await prepareImageUpload(file);
       const body = new FormData();
-      body.set("file", file);
+      body.set("file", prepared);
       body.set("kind", "cover");
       const response = await fetch("/api/media/upload", { method: "POST", body });
-      const data = (await response.json().catch(() => ({}))) as { path?: string; error?: string };
+      const data = (await response.json().catch(() => ({}))) as {
+        path?: string;
+        error?: string;
+        originalBytes?: number;
+        optimizedBytes?: number;
+      };
       if (!response.ok || !data.path) {
         setError(data.error ?? "Não foi possível enviar a imagem de capa.");
         return;
       }
       setCoverPath(data.path);
+      if (data.originalBytes && data.optimizedBytes) {
+        setCoverUploadInfo(
+          `Enviado: ${formatBytes(data.originalBytes)} → otimizado: ${formatBytes(data.optimizedBytes)}.`,
+        );
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Não foi possível preparar a imagem.");
     } finally {
       setUploadingCover(false);
     }
@@ -252,11 +270,20 @@ export function CommunicationEditor({
               {coverPath ? "Trocar capa" : "Enviar capa"}
             </Button>
             {coverPath ? (
-              <Button type="button" variant="ghost" onClick={() => setCoverPath("")}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setCoverPath("");
+                  setCoverUploadInfo(null);
+                }}
+              >
                 Remover capa
               </Button>
             ) : null}
           </div>
+          <MediaLimitsHint variant="cover" />
+          {coverUploadInfo ? <p className="text-xs text-fg-muted">{coverUploadInfo}</p> : null}
           <input
             ref={coverInputRef}
             type="file"

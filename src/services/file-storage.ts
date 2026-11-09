@@ -4,51 +4,51 @@ import { randomUUID } from "node:crypto";
 import { getEnv } from "@/lib/env";
 import { ValidationError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+import { IMAGE_LIMITS, formatBytes } from "@/lib/image-limits";
+import { optimizeImageBuffer } from "@/services/image-optimize";
 import {
   azureBlobObjectUrl,
   parseAzureBlobToken,
 } from "@/lib/azure-blob";
 
-const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
-const MAX_BYTES = 2 * 1024 * 1024;
+const ALLOWED = new Set<string>(IMAGE_LIMITS.allowedMime);
 
 export type StoredImage = {
   path: string;
   url: string;
   storage: "disk" | "azure" | "vercel-blob" | "data";
+  originalBytes: number;
+  optimizedBytes: number;
+  contentType: string;
 };
 
 function assertImage(file: File) {
   if (!ALLOWED.has(file.type)) {
-    throw new ValidationError("Imagem deve ser JPEG, PNG ou WebP.");
+    throw new ValidationError(`Imagem deve ser ${IMAGE_LIMITS.allowedLabel}.`);
   }
-  if (file.size > MAX_BYTES) {
-    throw new ValidationError("Imagem deve ter no máximo 2 MB.");
+  if (file.size > IMAGE_LIMITS.maxUploadBytes) {
+    throw new ValidationError(
+      `Imagem com ${formatBytes(file.size)}. Máximo: ${IMAGE_LIMITS.maxUploadLabel}.`,
+    );
   }
-}
-
-function extensionFor(type: string) {
-  if (type === "image/png") return "png";
-  if (type === "image/webp") return "webp";
-  return "jpg";
 }
 
 function readAzureBlobToken() {
-  // literal + getEnv: Vercel injeta process.env.AZURE_BLOB_TOKEN no bundle
   return (process.env.AZURE_BLOB_TOKEN || getEnv().AZURE_BLOB_TOKEN || "").trim();
 }
 
 async function trySaveToAzure(
-  file: File,
   folder: "covers" | "inline",
   buffer: Buffer,
-): Promise<StoredImage | null> {
+  contentType: string,
+  extension: string,
+): Promise<Omit<StoredImage, "originalBytes" | "optimizedBytes" | "contentType"> | null> {
   const token = readAzureBlobToken();
   if (!token) return null;
 
   try {
     const parsed = parseAzureBlobToken(token);
-    const blobName = `${folder}/${randomUUID()}.${extensionFor(file.type)}`;
+    const blobName = `${folder}/${randomUUID()}.${extension}`;
     const putUrl = azureBlobObjectUrl(parsed.containerBaseUrl, blobName, parsed.sasQuery);
 
     const response = await fetch(putUrl, {
@@ -56,7 +56,7 @@ async function trySaveToAzure(
       headers: {
         "x-ms-blob-type": "BlockBlob",
         "x-ms-version": "2022-11-02",
-        "Content-Type": file.type,
+        "Content-Type": contentType,
       },
       body: new Uint8Array(buffer),
     });
@@ -70,7 +70,6 @@ async function trySaveToAzure(
       return null;
     }
 
-    // path interno + URL autenticada via /api/media (anexa SAS no GET)
     return {
       path: `azure:${blobName}`,
       url: `/api/media/${blobName}`,
@@ -84,11 +83,15 @@ async function trySaveToAzure(
   }
 }
 
-async function trySaveToDisk(file: File, folder: "covers" | "inline", buffer: Buffer): Promise<StoredImage> {
+async function trySaveToDisk(
+  folder: "covers" | "inline",
+  buffer: Buffer,
+  extension: string,
+): Promise<Omit<StoredImage, "originalBytes" | "optimizedBytes" | "contentType">> {
   const env = getEnv();
   const dir = path.resolve(process.cwd(), env.FILE_STORAGE_DIR, folder);
   await mkdir(dir, { recursive: true });
-  const filename = `${randomUUID()}.${extensionFor(file.type)}`;
+  const filename = `${randomUUID()}.${extension}`;
   await writeFile(path.join(dir, filename), buffer);
   const relative = `${folder}/${filename}`;
   return {
@@ -99,18 +102,19 @@ async function trySaveToDisk(file: File, folder: "covers" | "inline", buffer: Bu
 }
 
 async function trySaveToVercelBlob(
-  file: File,
   folder: "covers" | "inline",
   buffer: Buffer,
-): Promise<StoredImage | null> {
+  contentType: string,
+  extension: string,
+): Promise<Omit<StoredImage, "originalBytes" | "optimizedBytes" | "contentType"> | null> {
   const token = process.env.BLOB_READ_WRITE_TOKEN;
   if (!token) return null;
   try {
     const { put } = await import("@vercel/blob");
-    const blob = await put(`${folder}/${randomUUID()}.${extensionFor(file.type)}`, buffer, {
+    const blob = await put(`${folder}/${randomUUID()}.${extension}`, buffer, {
       access: "public",
       token,
-      contentType: file.type,
+      contentType,
     });
     return {
       path: blob.url,
@@ -125,34 +129,78 @@ async function trySaveToVercelBlob(
   }
 }
 
-function toDataUrl(file: File, buffer: Buffer): StoredImage {
-  const url = `data:${file.type};base64,${buffer.toString("base64")}`;
+function toDataUrl(
+  buffer: Buffer,
+  contentType: string,
+): Omit<StoredImage, "originalBytes" | "optimizedBytes" | "contentType"> {
+  const url = `data:${contentType};base64,${buffer.toString("base64")}`;
   return { path: url, url, storage: "data" };
 }
 
 async function saveImageFile(file: File, folder: "covers" | "inline"): Promise<StoredImage> {
   assertImage(file);
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const raw = Buffer.from(await file.arrayBuffer());
+  const optimized = await optimizeImageBuffer(raw, folder === "covers" ? "cover" : "inline");
 
-  const azure = await trySaveToAzure(file, folder, buffer);
-  if (azure) return azure;
+  const azure = await trySaveToAzure(
+    folder,
+    optimized.buffer,
+    optimized.contentType,
+    optimized.extension,
+  );
+  if (azure) {
+    return {
+      ...azure,
+      originalBytes: optimized.originalBytes,
+      optimizedBytes: optimized.optimizedBytes,
+      contentType: optimized.contentType,
+    };
+  }
 
-  const vercelBlob = await trySaveToVercelBlob(file, folder, buffer);
-  if (vercelBlob) return vercelBlob;
+  const vercelBlob = await trySaveToVercelBlob(
+    folder,
+    optimized.buffer,
+    optimized.contentType,
+    optimized.extension,
+  );
+  if (vercelBlob) {
+    return {
+      ...vercelBlob,
+      originalBytes: optimized.originalBytes,
+      optimizedBytes: optimized.optimizedBytes,
+      contentType: optimized.contentType,
+    };
+  }
 
   const onVercel = process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV);
   if (onVercel) {
     logger.warn("media_using_data_url", { folder, reason: "vercel_without_azure_blob" });
-    return toDataUrl(file, buffer);
+    return {
+      ...toDataUrl(optimized.buffer, optimized.contentType),
+      originalBytes: optimized.originalBytes,
+      optimizedBytes: optimized.optimizedBytes,
+      contentType: optimized.contentType,
+    };
   }
 
   try {
-    return await trySaveToDisk(file, folder, buffer);
+    const disk = await trySaveToDisk(folder, optimized.buffer, optimized.extension);
+    return {
+      ...disk,
+      originalBytes: optimized.originalBytes,
+      optimizedBytes: optimized.optimizedBytes,
+      contentType: optimized.contentType,
+    };
   } catch (error) {
     logger.error("disk_upload_failed", {
       message: error instanceof Error ? error.message : String(error),
     });
-    return toDataUrl(file, buffer);
+    return {
+      ...toDataUrl(optimized.buffer, optimized.contentType),
+      originalBytes: optimized.originalBytes,
+      optimizedBytes: optimized.optimizedBytes,
+      contentType: optimized.contentType,
+    };
   }
 }
 
@@ -164,7 +212,6 @@ export async function saveInlineImage(file: File): Promise<StoredImage> {
   return saveImageFile(file, "inline");
 }
 
-/** Monta URL assinada para leitura de um blob Azure (path relativo covers/... ou azure:covers/...). */
 export function azureReadUrl(relativeOrAzurePath: string): string | null {
   const token = readAzureBlobToken();
   if (!token) return null;

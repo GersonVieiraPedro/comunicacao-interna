@@ -27,6 +27,9 @@ import {
 } from "lucide-react";
 import { FontSize } from "@/features/communications/font-size";
 import { Icon } from "@/components/ui/icon";
+import { MediaLimitsHint } from "@/components/media/media-limits-hint";
+import { prepareImageUpload } from "@/lib/prepare-image-upload";
+import { IMAGE_LIMITS } from "@/lib/image-limits";
 import { cn } from "@/lib/cn";
 
 const FONT_SIZES = [
@@ -216,8 +219,8 @@ function EditorToolbar({
         className={cn(
           "inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-transparent text-fg transition hover:bg-muted",
         )}
-        title="Inserir imagem"
-        aria-label="Inserir imagem"
+        title={`Inserir imagem (até ${IMAGE_LIMITS.maxUploadLabel})`}
+        aria-label={`Inserir imagem, máximo ${IMAGE_LIMITS.maxUploadLabel}`}
       >
         <Icon icon={ImagePlus} className="h-4 w-4" />
         <input
@@ -291,19 +294,26 @@ function SectionEditor({
   const onPickImage = useCallback(
     async (file: File | undefined) => {
       if (!file || !editor) return;
-      const body = new FormData();
-      body.set("file", file);
-      body.set("kind", "inline");
-      const response = await fetch("/api/media/upload", { method: "POST", body });
-      const payload = (await response.json().catch(() => ({}))) as {
-        url?: string;
-        error?: string;
-      };
-      if (!response.ok || !payload.url) {
-        window.alert(payload.error ?? "Não foi possível enviar a imagem.");
-        return;
+      try {
+        const prepared = await prepareImageUpload(file);
+        const body = new FormData();
+        body.set("file", prepared);
+        body.set("kind", "inline");
+        const response = await fetch("/api/media/upload", { method: "POST", body });
+        const payload = (await response.json().catch(() => ({}))) as {
+          url?: string;
+          error?: string;
+          originalBytes?: number;
+          optimizedBytes?: number;
+        };
+        if (!response.ok || !payload.url) {
+          window.alert(payload.error ?? "Não foi possível enviar a imagem.");
+          return;
+        }
+        editor.chain().focus().setImage({ src: payload.url, alt: file.name }).run();
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : "Não foi possível preparar a imagem.");
       }
-      editor.chain().focus().setImage({ src: payload.url, alt: file.name }).run();
     },
     [editor],
   );
@@ -323,6 +333,9 @@ function SectionEditor({
         </div>
       </div>
       <EditorToolbar editor={editor} fileInputRef={fileInputRef} onPickImage={(file) => void onPickImage(file)} />
+      <div className="border-b border-border bg-muted/20 px-4 py-2">
+        <MediaLimitsHint variant="inline" />
+      </div>
       <EditorContent editor={editor} />
     </div>
   );
