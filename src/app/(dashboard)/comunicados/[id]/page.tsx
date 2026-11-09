@@ -7,6 +7,7 @@ import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Card } from "@/components/ui/card";
 import { CommunicationPriority } from "@/types/communication";
 import { markNotificationsForCommunication } from "@/repositories/notification-repository";
+import { mediaSrc } from "@/lib/media-url";
 
 export default async function CommunicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -24,10 +25,10 @@ export default async function CommunicationDetailPage({ params }: { params: Prom
         {item.priority === CommunicationPriority.URGENT ? <Badge tone="danger">Urgente</Badge> : null}
         {item.priority === CommunicationPriority.IMPORTANT ? <Badge tone="warning">Importante</Badge> : null}
       </div>
-      {item.coverPath ? (
+      {mediaSrc(item.coverPath) ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={`/api/media/${item.coverPath}`}
+          src={mediaSrc(item.coverPath) ?? undefined}
           alt=""
           className="max-h-80 w-full rounded-2xl object-cover shadow-sm"
         />

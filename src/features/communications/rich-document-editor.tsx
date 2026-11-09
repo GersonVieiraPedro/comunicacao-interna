@@ -46,7 +46,7 @@ function ToolbarButton({
   active?: boolean;
   disabled?: boolean;
   label: string;
-  onClick: () => void;
+  onClick?: () => void;
   children: React.ReactNode;
 }) {
   return (
@@ -57,7 +57,7 @@ function ToolbarButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "inline-flex h-9 w-9 items-center justify-center rounded-lg border border-transparent text-fg transition",
+        "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-transparent text-fg transition",
         active ? "border-accent/30 bg-accent-subtle text-accent" : "hover:bg-muted",
         disabled && "opacity-40",
       )}
@@ -69,13 +69,15 @@ function ToolbarButton({
 
 function EditorToolbar({
   editor,
-  onUploadImage,
+  fileInputRef,
+  onPickImage,
 }: {
   editor: Editor;
-  onUploadImage: () => void;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onPickImage: (file: File | undefined) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1 border-b border-border bg-muted/40 px-2 py-2">
+    <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-muted/40 px-2 py-2 [scrollbar-width:thin]">
       <ToolbarButton
         label="Negrito"
         active={editor.isActive("bold")}
@@ -97,7 +99,9 @@ function EditorToolbar({
       >
         <Icon icon={UnderlineIcon} className="h-4 w-4" />
       </ToolbarButton>
-      <span className="mx-1 h-5 w-px bg-border" aria-hidden />
+
+      <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden />
+
       <ToolbarButton
         label="Título H2"
         active={editor.isActive("heading", { level: 2 })}
@@ -112,11 +116,13 @@ function EditorToolbar({
       >
         <Icon icon={Heading3} className="h-4 w-4" />
       </ToolbarButton>
-      <label className="ml-1 inline-flex items-center gap-1 text-xs text-fg-muted">
-        Tamanho
+
+      <label className="ml-1 inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border border-border bg-surface px-2 text-xs text-fg-muted">
+        <span className="whitespace-nowrap">Tamanho</span>
         <select
-          className="h-9 rounded-lg border border-border bg-surface px-2 text-xs text-fg"
+          className="h-7 border-0 bg-transparent text-xs text-fg outline-none"
           defaultValue=""
+          aria-label="Tamanho da fonte"
           onChange={(event) => {
             const value = event.target.value;
             if (!value) {
@@ -134,7 +140,9 @@ function EditorToolbar({
           ))}
         </select>
       </label>
-      <span className="mx-1 h-5 w-px bg-border" aria-hidden />
+
+      <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden />
+
       <ToolbarButton
         label="Lista"
         active={editor.isActive("bulletList")}
@@ -156,7 +164,9 @@ function EditorToolbar({
       >
         <Icon icon={Quote} className="h-4 w-4" />
       </ToolbarButton>
-      <span className="mx-1 h-5 w-px bg-border" aria-hidden />
+
+      <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden />
+
       <ToolbarButton
         label="Alinhar à esquerda"
         active={editor.isActive({ textAlign: "left" })}
@@ -178,7 +188,9 @@ function EditorToolbar({
       >
         <Icon icon={AlignRight} className="h-4 w-4" />
       </ToolbarButton>
-      <span className="mx-1 h-5 w-px bg-border" aria-hidden />
+
+      <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden />
+
       <ToolbarButton
         label="Link"
         active={editor.isActive("link")}
@@ -195,9 +207,27 @@ function EditorToolbar({
       >
         <Icon icon={Link2} className="h-4 w-4" />
       </ToolbarButton>
-      <ToolbarButton label="Inserir imagem" onClick={onUploadImage}>
+
+      <label
+        className={cn(
+          "inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-transparent text-fg transition hover:bg-muted",
+        )}
+        title="Inserir imagem"
+        aria-label="Inserir imagem"
+      >
         <Icon icon={ImagePlus} className="h-4 w-4" />
-      </ToolbarButton>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="sr-only"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            onPickImage(file);
+          }}
+        />
+      </label>
     </div>
   );
 }
@@ -217,7 +247,7 @@ function SectionEditor({
   minHeightClass: string;
   onChange: (html: string) => void;
 }) {
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -228,7 +258,7 @@ function SectionEditor({
       FontSize,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Link.configure({ openOnClick: false, autolink: true }),
-      Image.configure({ allowBase64: false }),
+      Image.configure({ allowBase64: true }),
       Placeholder.configure({ placeholder }),
     ],
     content: value || "<p></p>",
@@ -254,24 +284,22 @@ function SectionEditor({
     }
   }, [editor, value]);
 
-  const uploadImage = useCallback(async () => {
-    fileRef.current?.click();
-  }, []);
-
-  const onFile = useCallback(
+  const onPickImage = useCallback(
     async (file: File | undefined) => {
       if (!file || !editor) return;
       const body = new FormData();
       body.set("file", file);
       body.set("kind", "inline");
       const response = await fetch("/api/media/upload", { method: "POST", body });
-      if (!response.ok) {
-        window.alert("Não foi possível enviar a imagem.");
+      const payload = (await response.json().catch(() => ({}))) as {
+        url?: string;
+        error?: string;
+      };
+      if (!response.ok || !payload.url) {
+        window.alert(payload.error ?? "Não foi possível enviar a imagem.");
         return;
       }
-      const data = (await response.json()) as { url?: string };
-      if (!data.url) return;
-      editor.chain().focus().setImage({ src: data.url, alt: file.name }).run();
+      editor.chain().focus().setImage({ src: payload.url, alt: file.name }).run();
     },
     [editor],
   );
@@ -290,19 +318,8 @@ function SectionEditor({
           <p className="text-xs text-fg-muted">{hint}</p>
         </div>
       </div>
-      <EditorToolbar editor={editor} onUploadImage={() => void uploadImage()} />
+      <EditorToolbar editor={editor} fileInputRef={fileInputRef} onPickImage={(file) => void onPickImage(file)} />
       <EditorContent editor={editor} />
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/png,image/jpeg,image/webp"
-        className="hidden"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          void onFile(file);
-        }}
-      />
     </div>
   );
 }

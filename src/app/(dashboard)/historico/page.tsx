@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import Link from "next/link";
 import { Inbox } from "lucide-react";
+import { mediaSrc } from "@/lib/media-url";
 
 export default async function HistoryPage({
   searchParams,
@@ -81,7 +82,7 @@ export default async function HistoryPage({
               publishedAt={item.publishedAt}
               unread={item.reads.length === 0}
               priority={item.priority}
-              coverUrl={item.coverPath ? `/api/media/${item.coverPath}` : null}
+              coverUrl={mediaSrc(item.coverPath)}
             />
           ))}
         </div>

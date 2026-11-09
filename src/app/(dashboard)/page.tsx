@@ -7,6 +7,7 @@ import { InstallAppCard } from "@/components/pwa/install-app-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Megaphone } from "lucide-react";
+import { mediaSrc } from "@/lib/media-url";
 
 export default async function HomePage() {
   const session = await auth();
@@ -52,7 +53,7 @@ export default async function HomePage() {
             publishedAt={data.featured.publishedAt}
             unread={!data.readIds.has(data.featured.id)}
             priority={data.featured.priority}
-            coverUrl={data.featured.coverPath ? `/api/media/${data.featured.coverPath}` : null}
+            coverUrl={mediaSrc(data.featured.coverPath)}
           />
         </section>
       ) : (
@@ -78,7 +79,7 @@ export default async function HomePage() {
                 publishedAt={item.publishedAt}
                 unread={!data.readIds.has(item.id)}
                 priority={item.priority}
-                coverUrl={item.coverPath ? `/api/media/${item.coverPath}` : null}
+                coverUrl={mediaSrc(item.coverPath)}
               />
             ))}
           </div>

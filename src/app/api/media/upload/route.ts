@@ -5,6 +5,8 @@ import { jsonError } from "@/lib/http";
 import { ValidationError } from "@/lib/errors";
 import { saveCoverFile, saveInlineImage } from "@/services/file-storage";
 
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   try {
     const session = await auth();
@@ -15,10 +17,11 @@ export async function POST(request: Request) {
       throw new ValidationError("Arquivo de imagem obrigatório.");
     }
     const kind = form.get("kind") === "cover" ? "cover" : "inline";
-    const relative = kind === "cover" ? await saveCoverFile(file) : await saveInlineImage(file);
+    const stored = kind === "cover" ? await saveCoverFile(file) : await saveInlineImage(file);
     return NextResponse.json({
-      path: relative,
-      url: `/api/media/${relative}`,
+      path: stored.path,
+      url: stored.url,
+      storage: stored.storage,
     });
   } catch (error) {
     return jsonError(error);

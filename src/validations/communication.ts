@@ -13,7 +13,8 @@ export const communicationInputSchema = z.object({
     CommunicationPriority.URGENT,
   ]),
   expiresAt: z.coerce.date().optional().nullable(),
-  coverPath: z.string().max(500).optional().nullable(),
+  // Disco local (~path curto), Blob URL ou data URL (piloto na Vercel sem Blob).
+  coverPath: z.string().max(5_000_000).optional().nullable(),
   scheduledPublishAt: z.coerce.date().optional().nullable(),
 });
 

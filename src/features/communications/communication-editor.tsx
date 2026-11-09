@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/cn";
 import { parseDateTimeLocalInput } from "@/lib/datetime";
+import { mediaSrc } from "@/lib/media-url";
 import { composeDocument, parseDocument } from "@/features/communications/document-html";
 import { RichDocumentEditor } from "@/features/communications/rich-document-editor";
 import {
@@ -180,12 +181,12 @@ export function CommunicationEditor({
       body.set("file", file);
       body.set("kind", "cover");
       const response = await fetch("/api/media/upload", { method: "POST", body });
-      if (!response.ok) {
-        setError("Não foi possível enviar a imagem de capa.");
+      const data = (await response.json().catch(() => ({}))) as { path?: string; error?: string };
+      if (!response.ok || !data.path) {
+        setError(data.error ?? "Não foi possível enviar a imagem de capa.");
         return;
       }
-      const data = (await response.json()) as { path?: string };
-      if (data.path) setCoverPath(data.path);
+      setCoverPath(data.path);
     } finally {
       setUploadingCover(false);
     }
@@ -228,10 +229,10 @@ export function CommunicationEditor({
         />
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium text-fg">Imagem de capa</p>
-          {coverPath ? (
+          {coverPath && mediaSrc(coverPath) ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={`/api/media/${coverPath}`}
+              src={mediaSrc(coverPath) ?? undefined}
               alt=""
               className="max-h-48 w-full rounded-xl object-cover"
             />

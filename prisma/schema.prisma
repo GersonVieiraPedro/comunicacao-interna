@@ -63,7 +63,7 @@ model Communication {
   subtitle            String?   @db.NVarChar(300)
   summary             String    @db.NVarChar(500)
   bodyHtml            String    @db.NVarChar(Max)
-  coverPath           String?   @db.NVarChar(500)
+  coverPath           String?   @db.NVarChar(Max)
   categoryId          String
   authorUserId        String
   publishedByUserId   String?
