@@ -11,8 +11,8 @@ export function NotificationBellLink({ count }: { count: number }) {
     >
       <Icon icon={Bell} className="h-5 w-5" />
       {count > 0 ? (
-        <span className="absolute right-1 top-1 inline-flex min-w-4 rounded-full bg-danger px-1 text-[10px] text-white">
-          {count > 9 ? "9+" : count}
+        <span className="absolute right-1 top-1 inline-flex min-w-4 rounded-full bg-danger text-[10px] text-white justify-center p-1 font-semibold leading-none">
+          <span>{count > 9 ? "9+" : count}</span>
         </span>
       ) : null}
     </Link>
