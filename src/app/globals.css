@@ -25,6 +25,7 @@
   --sf-shadow: 0 10px 30px rgba(71, 0, 130, 0.08);
   --sf-shadow-lg: 0 18px 48px rgba(71, 0, 130, 0.12);
   --sf-sidebar-w: 16.5rem;
+  --sf-sidebar-collapsed-w: 4.5rem;
   --sf-header-h: 3.75rem;
   --sf-bottom-nav-h: 4.25rem;
 }
