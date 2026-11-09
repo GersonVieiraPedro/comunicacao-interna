@@ -39,20 +39,33 @@ import { DeliveryStatus, NotificationChannel } from "@/types/communication";
 import { sendWebPushForPublication } from "@/services/push-service";
 
 async function fanOutPublication(communicationId: string) {
-  const copy = defaultPushCopy();
+  const communication = await findCommunicationById(communicationId);
+  const fallback = defaultPushCopy();
+  const title = communication?.title?.slice(0, 120) || fallback.title;
+  const body = communication?.summary?.slice(0, 200) || fallback.body;
   const userIds = await listCollaboratorUserIds();
   await createNotificationsForUsers({
     userIds,
     communicationId,
-    title: copy.title,
-    body: copy.body,
+    title,
+    body,
   });
   await logDelivery({
     communicationId,
     channel: NotificationChannel.IN_APP,
     status: DeliveryStatus.SENT,
   });
-  await sendWebPushForPublication(communicationId);
+  try {
+    await sendWebPushForPublication(communicationId);
+  } catch (error) {
+    await logDelivery({
+      communicationId,
+      channel: NotificationChannel.WEB_PUSH,
+      status: DeliveryStatus.FAILED,
+      errorCode: error instanceof Error ? error.message.slice(0, 180) : "FANOUT_PUSH_ERROR",
+    });
+    // Não falha a publicação se o push cair — o comunicado já está público.
+  }
 }
 
 async function markPublished(

@@ -42,6 +42,10 @@ export async function listActiveSubscriptions() {
   return prisma.pushSubscription.findMany({ where: { active: true } });
 }
 
+export async function listActiveSubscriptionsForUser(userId: string) {
+  return prisma.pushSubscription.findMany({ where: { active: true, userId } });
+}
+
 export async function markUsed(id: string) {
   return prisma.pushSubscription.update({
     where: { id },
