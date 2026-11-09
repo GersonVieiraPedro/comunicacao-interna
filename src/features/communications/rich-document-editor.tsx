@@ -245,6 +245,7 @@ function SectionEditor({
   value,
   placeholder,
   minHeightClass,
+  flushMedia = false,
   onChange,
 }: {
   label: string;
@@ -252,6 +253,8 @@ function SectionEditor({
   value: string;
   placeholder: string;
   minHeightClass: string;
+  /** Remove padding interno (útil para imagem de cabeçalho/rodapé colada nas bordas). */
+  flushMedia?: boolean;
   onChange: (html: string) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -273,7 +276,10 @@ function SectionEditor({
     editorProps: {
       attributes: {
         class: cn(
-          "sf-prose max-w-none px-4 py-3 outline-none focus:outline-none",
+          "sf-prose max-w-none outline-none focus:outline-none",
+          flushMedia
+            ? "px-0 py-0 [&_img]:my-0 [&_img]:rounded-none [&_p]:px-4 [&_p]:py-2"
+            : "px-4 py-3 [&_img]:my-3 [&_img]:rounded-xl",
           minHeightClass,
         ),
       },
@@ -360,6 +366,7 @@ export function RichDocumentEditor({
         value={headerHtml}
         placeholder="Ex.: Comunicação Interna · Meta RH"
         minHeightClass="min-h-28"
+        flushMedia
         onChange={(html) => onChange({ headerHtml: html, bodyHtml, footerHtml })}
       />
       <SectionEditor
@@ -376,6 +383,7 @@ export function RichDocumentEditor({
         value={footerHtml}
         placeholder="Ex.: Dúvidas? Fale com o RH no canal #comunicacao"
         minHeightClass="min-h-24"
+        flushMedia
         onChange={(html) => onChange({ headerHtml, bodyHtml, footerHtml: html })}
       />
     </div>

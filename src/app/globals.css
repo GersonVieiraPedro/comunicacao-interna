@@ -87,8 +87,16 @@
     text-underline-offset: 2px;
   }
 
-  .sf-prose img {
+  .sf-prose .cci-body img {
     border-radius: var(--sf-radius);
     margin: 1rem 0;
+  }
+
+  .sf-prose .cci-header img,
+  .sf-prose .cci-footer img {
+    display: block;
+    width: 100%;
+    margin: 0;
+    border-radius: 0;
   }
 }

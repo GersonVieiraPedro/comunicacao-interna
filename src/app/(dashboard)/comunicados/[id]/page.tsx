@@ -17,14 +17,13 @@ export default async function CommunicationDetailPage({ params }: { params: Prom
   await markNotificationsForCommunication(userId, id);
 
   return (
-    <article className="mx-auto flex max-w-2xl flex-col gap-5">
-      <Breadcrumbs items={[{ href: "/", label: "Início" }, { label: item.title }]} />
-      <PageHeader title={item.title} description={item.subtitle ?? undefined} eyebrow={item.category.name} />
-      <div className="flex flex-wrap gap-2">
-        <Badge tone="info">{item.category.name}</Badge>
-        {item.priority === CommunicationPriority.URGENT ? <Badge tone="danger">Urgente</Badge> : null}
-        {item.priority === CommunicationPriority.IMPORTANT ? <Badge tone="warning">Importante</Badge> : null}
-      </div>
+    <article className="mx-auto flex max-w-4xl flex-col gap-5">
+        <p className="text-sm text-fg-muted">
+        {item.publishedAt
+          ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "long", timeStyle: "short" }).format(item.publishedAt)
+          : null}{" "}
+        · {item.author.displayName}
+      </p>
       {mediaSrc(item.coverPath) ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -35,18 +34,23 @@ export default async function CommunicationDetailPage({ params }: { params: Prom
       ) : (
         <div className="h-2 w-24 rounded-full bg-spark" aria-hidden />
       )}
-      <p className="text-sm text-fg-muted">
-        {item.publishedAt
-          ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "long", timeStyle: "short" }).format(item.publishedAt)
-          : null}{" "}
-        · {item.author.displayName}
-      </p>
+      <PageHeader title={item.title} description={item.subtitle ?? undefined} eyebrow={item.category.name} />
+      <div className="flex flex-wrap gap-2">
+        <Badge tone="info">{item.category.name}</Badge>
+        {item.priority === CommunicationPriority.URGENT ? <Badge tone="danger">Urgente</Badge> : null}
+        {item.priority === CommunicationPriority.IMPORTANT ? <Badge tone="warning">Importante</Badge> : null}
+      </div>
+
+
       {item.summary ? (
-        <Card className="border-accent/15 bg-accent-subtle/60">
-          <p className="text-sm font-medium leading-relaxed text-fg">{item.summary}</p>
-        </Card>
+        <div className="flex flex-col gap-1">
+          <p className="pl-2 text-sm text-fg-muted">Resumo</p>
+          <Card>
+            <RichText html={item.summary} />
+          </Card>
+        </div>
       ) : null}
-      <Card className="p-5 md:p-7">
+      <Card className="overflow-hidden p-0">
         <RichText html={item.bodyHtml} />
       </Card>
     </article>
