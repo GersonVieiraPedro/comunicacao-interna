@@ -34,8 +34,8 @@ export function canEditContent(status: string): boolean {
   return status === CommunicationStatus.DRAFT || status === CommunicationStatus.SCHEDULED;
 }
 
-export function assertScheduleAt(scheduledAt: Date, now: Date): void {
-  if (scheduledAt.getTime() <= now.getTime()) {
+export function assertScheduleAt(scheduledAt: Date, now: Date, skewMs = 30_000): void {
+  if (scheduledAt.getTime() <= now.getTime() - skewMs) {
     throw new Error("SCHEDULE_IN_PAST");
   }
 }

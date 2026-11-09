@@ -13,15 +13,26 @@ import {
 } from "@/services/communication-service";
 import { markNotificationRead } from "@/repositories/notification-repository";
 import { requireUser } from "@/lib/authz";
-import { toPublicError } from "@/lib/errors";
+import { parseDateTimeLocalInput } from "@/lib/datetime";
+import { toPublicError, ValidationError } from "@/lib/errors";
 
 function formString(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value : "";
 }
 
+function parseOptionalDate(value: string): Date | null {
+  if (!value.trim()) return null;
+  try {
+    return parseDateTimeLocalInput(value);
+  } catch {
+    throw new ValidationError("Data/hora inválida.");
+  }
+}
+
 function payloadFromForm(formData: FormData) {
   const expires = formString(formData, "expiresAt");
+  const expiresAt = parseOptionalDate(expires);
   return {
     title: formString(formData, "title"),
     subtitle: formString(formData, "subtitle") || null,
@@ -30,7 +41,7 @@ function payloadFromForm(formData: FormData) {
     categoryId: formString(formData, "categoryId"),
     priority: formString(formData, "priority"),
     coverPath: formString(formData, "coverPath") || null,
-    expiresAt: expires ? new Date(expires) : null,
+    expiresAt,
   };
 }
 
@@ -73,13 +84,28 @@ export async function actionSchedule(formData: FormData) {
   try {
     const session = await auth();
     const scheduled = formString(formData, "scheduledPublishAt");
-    if (!scheduled) return { ok: false as const, message: "Informe data e hora.", status: 400, code: "VALIDATION" };
+    if (!scheduled) {
+      return { ok: false as const, message: "Informe data e hora.", status: 400, code: "VALIDATION" };
+    }
+    let scheduledAt: Date;
+    try {
+      scheduledAt = parseDateTimeLocalInput(scheduled);
+    } catch {
+      return {
+        ok: false as const,
+        message: "Data/hora de agendamento inválida.",
+        status: 400,
+        code: "VALIDATION",
+      };
+    }
     let id = formString(formData, "id");
     if (!id) {
       const saved = await saveDraft(session?.user, payloadFromForm(formData));
       id = saved.id;
+    } else {
+      await updateDraft(session?.user, id, payloadFromForm(formData)).catch(() => undefined);
     }
-    await schedulePublication(session?.user, id, new Date(scheduled));
+    await schedulePublication(session?.user, id, scheduledAt);
     revalidatePath("/admin");
     return { ok: true as const, id };
   } catch (error) {

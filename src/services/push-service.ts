@@ -75,7 +75,14 @@ async function dispatchToSubscriptions(
             keys: { p256dh: subscription.p256dh, auth: subscription.auth },
           },
           body,
-          { TTL: 60 * 60, urgency: payload.priority === "URGENT" ? "high" : "normal" },
+          {
+            TTL: 60 * 60,
+            // high aumenta chance de alertar com som (especialmente Android/FCM)
+            urgency: "high",
+            headers: {
+              Urgency: "high",
+            },
+          },
         );
         await markUsed(subscription.id);
         if (shouldLog && communicationId) {

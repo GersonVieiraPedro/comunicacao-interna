@@ -17,7 +17,7 @@ export default async function AdminCommunicationPage({ params }: { params: Promi
   const editable = item.status === CommunicationStatus.DRAFT || item.status === CommunicationStatus.SCHEDULED;
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <PageHeader title={item.title} description={`Status: ${item.status}`} />
       <Card>
         <p className="text-sm text-fg-muted">Métricas (derivadas do banco)</p>
@@ -46,6 +46,8 @@ export default async function AdminCommunicationPage({ params }: { params: Promi
             priority: item.priority,
             status: item.status,
             coverPath: item.coverPath,
+            scheduledPublishAt: item.scheduledPublishAt,
+            expiresAt: item.expiresAt,
           }}
         />
       ) : (

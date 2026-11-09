@@ -21,6 +21,8 @@ self.addEventListener("push", (event) => {
   }
 
   const urgent = data.priority === "URGENT" || data.priority === "IMPORTANT";
+  // Tag única evita substituição silenciosa da notificação anterior no iOS/Android
+  const tag = `cci-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   event.waitUntil(
     self.registration.showNotification(data.title || "Nova comunicação interna", {
@@ -28,11 +30,13 @@ self.addEventListener("push", (event) => {
       icon: "/icon.svg",
       badge: "/icon.svg",
       data: { url: data.url || "/" },
-      tag: data.communicationId ? `comunicado-${data.communicationId}` : "comunicado",
+      tag,
       renotify: true,
+      // explícito: tocar som padrão do sistema
       silent: false,
       requireInteraction: urgent,
-      vibrate: urgent ? [200, 100, 200, 100, 200] : [160, 80, 160],
+      vibrate: urgent ? [220, 100, 220, 100, 220] : [180, 80, 180],
+      timestamp: Date.now(),
     }),
   );
 });

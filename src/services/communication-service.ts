@@ -3,12 +3,12 @@ import { requireCommunicator, requireUser } from "@/lib/authz";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { sanitizeCommunicationHtml } from "@/lib/sanitize-html";
 import {
-  assertScheduleAt,
   computeReadMetrics,
   defaultPushCopy,
   isVisibleToCollaborator,
   selectUnreadPopup,
 } from "@/domain/communication-rules";
+import { assertFutureDate } from "@/lib/datetime";
 import { CommunicationStatus } from "@/types/communication";
 import { communicationInputSchema } from "@/validations/communication";
 import {
@@ -166,11 +166,13 @@ export async function schedulePublication(user: SessionUser | undefined, id: str
   if (existing.status !== CommunicationStatus.DRAFT && existing.status !== CommunicationStatus.SCHEDULED) {
     throw new ValidationError("Somente rascunho pode ser agendado.");
   }
-    try {
-      assertScheduleAt(scheduledPublishAt, new Date());
-    } catch {
-      throw new ValidationError("A data de agendamento precisa ser futura.");
-    }
+  try {
+    assertFutureDate(scheduledPublishAt, new Date());
+  } catch {
+    throw new ValidationError(
+      "A data de agendamento precisa ser futura (horário deste dispositivo / Brasília). Confira data e hora.",
+    );
+  }
   const updated = await updateCommunication(id, {
     status: CommunicationStatus.SCHEDULED,
     scheduledPublishAt,
@@ -224,14 +226,17 @@ export async function cancelCommunication(user: SessionUser | undefined, id: str
 
 export async function processScheduledJobs(now = new Date()) {
   const due = await listDueScheduled(now);
+  const publishedIds: string[] = [];
   for (const item of due) {
-    await markPublished(item.id, item.authorUserId, now);
+    // Push no mesmo runtime do cron/RSC (não Server Action) — VAPID disponível.
+    await markPublished(item.id, item.authorUserId, now, { sendPush: true });
+    publishedIds.push(item.id);
   }
   const expired = await listDueExpired(now);
   for (const item of expired) {
     await updateCommunication(item.id, { status: CommunicationStatus.EXPIRED });
   }
-  return { published: due.length, expired: expired.length };
+  return { published: due.length, expired: expired.length, publishedIds };
 }
 
 export async function getHomeData(user: SessionUser | undefined) {
