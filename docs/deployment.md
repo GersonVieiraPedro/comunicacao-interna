@@ -5,7 +5,7 @@
 - Root Directory na Vercel: `apps/comunicacao-interna` (se o repo for a Software Factory) **ou** a raiz do repo (se subir só este app).
 - Build: `npm install` → `prisma generate` (postinstall) → `next build`.
 - Env: copiar de `.env.example` — **nunca** versionar `.env` / `.env.local`.
-- Cron: `vercel.json` chama `/api/cron/publish-scheduled` a cada minuto; header `Authorization: Bearer $CRON_SECRET`.
+- Cron: `vercel.json` chama `/api/cron/publish-scheduled` **1×/dia** (`0 12 * * *` UTC) — limite do plano Hobby. Header `Authorization: Bearer $CRON_SECRET`. Para publicar agendados quase em tempo real: plano Pro (`* * * * *`) ou ping externo no mesmo endpoint.
 - SQL Server precisa ser alcançável da Vercel (firewall Azure SQL / IP público). Se o Azure SQL for só VNet, este caminho **não** sobe sem rede.
 - Web Push e PWA exigem **HTTPS** (Vercel já entrega).
 - Capas em disco (`uploads/`): no filesystem da Vercel são **efêmeras**. Para piloto, evite depender de capas persistentes; Blob/Storage fica para depois.

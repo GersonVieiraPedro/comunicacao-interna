@@ -42,3 +42,4 @@ Desktop.ini
 # Docker / local DB dumps
 *.bak
 *.sql.gz
+.cursor
