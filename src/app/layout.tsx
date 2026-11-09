@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Barlow } from "next/font/google";
 import { appConfig } from "@/config/app";
-// @ts-ignore -- Next.js resolves global CSS imports during the build.
 import "./globals.css";
 
 const barlow = Barlow({
