@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { requireUser } from "@/lib/authz";
+import { requireCommunicator } from "@/lib/authz";
 import { jsonError } from "@/lib/http";
-import { sendTestPushToUser } from "@/services/push-service";
+import { sendBroadcastTestPush } from "@/services/push-service";
 
+/** Somente comunicador/admin — envia "Notificação Teste" para todos os dispositivos. */
 export async function POST() {
   try {
     const session = await auth();
-    const user = requireUser(session?.user);
-    const result = await sendTestPushToUser(user.id);
+    requireCommunicator(session?.user);
+    const result = await sendBroadcastTestPush();
     if (!result.ok) {
       return NextResponse.json(result, { status: 400 });
     }

@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { urlBase64ToUint8Array } from "@/components/pwa/push-prompt";
 
-export function PushSettings() {
+export function PushSettings({ canBroadcastTest = false }: { canBroadcastTest?: boolean }) {
   const [permission, setPermission] = useState<string>("unknown");
   const [support, setSupport] = useState<string>("");
   const [status, setStatus] = useState<string>("");
@@ -68,19 +68,30 @@ export function PushSettings() {
         ok?: boolean;
         reason?: string;
         sent?: number;
+        failed?: number;
       };
+      if (response.status === 403) {
+        setStatus("Apenas administradores/comunicadores podem enviar o teste.");
+        return;
+      }
       if (!response.ok || !data.ok) {
         const reason = data.reason ?? "Falha";
         if (reason === "VAPID_NOT_CONFIGURED" || reason === "VAPID_INVALID") {
-          setStatus("Servidor sem chaves VAPID. Configure WEB_PUSH_* na Vercel e faça redeploy.");
+          setStatus(
+            "Chaves VAPID inválidas na Vercel. Confira WEB_PUSH_* (sem aspas) e NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY, depois faça Redeploy.",
+          );
         } else if (reason === "NO_SUBSCRIPTIONS") {
-          setStatus("Nenhum dispositivo registrado. Toque em Ativar neste dispositivo primeiro.");
+          setStatus("Nenhum dispositivo registrado. Peça para cada usuário ativar as notificações.");
         } else {
           setStatus(`Não foi possível enviar o teste (${reason}).`);
         }
         return;
       }
-      setStatus(`Teste enviado (${data.sent ?? 1}). Se o aparelho estiver com som ligado, deve tocar agora.`);
+      setStatus(
+        `Notificação Teste enviada para ${data.sent ?? 0} dispositivo(s)${
+          data.failed ? ` (${data.failed} falha(s))` : ""
+        }.`,
+      );
     } finally {
       setBusy(false);
     }
@@ -95,18 +106,18 @@ export function PushSettings() {
         <Button onClick={() => void enable()} disabled={busy || (Boolean(support) && !("PushManager" in window))}>
           Ativar neste dispositivo
         </Button>
-        <Button
-          variant="secondary"
-          onClick={() => void sendTest()}
-          disabled={busy || permission !== "granted"}
-        >
-          Enviar notificação de teste
-        </Button>
+        {canBroadcastTest ? (
+          <Button variant="secondary" onClick={() => void sendTest()} disabled={busy}>
+            Enviar notificação de teste
+          </Button>
+        ) : null}
       </div>
       {status ? <p className="mt-2 text-sm">{status}</p> : null}
       <p className="mt-3 text-xs text-fg-muted">
-        O aviso usa o som padrão do sistema (não dá para customizar no PWA). No iPhone, o app precisa estar na
-        Tela de Início e as notificações liberadas em Ajustes → Notificações.
+        {canBroadcastTest
+          ? 'O botão de teste envia "Notificação Teste" para todos os dispositivos registrados.'
+          : "Ative neste aparelho para receber avisos quando um comunicado for publicado."}{" "}
+        No iPhone use o app na Tela de Início.
       </p>
     </Card>
   );

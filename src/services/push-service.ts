@@ -1,12 +1,12 @@
 import webPush from "web-push";
 import { getEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { cleanEnvSecret, cleanVapidSubject } from "@/lib/vapid";
 import { defaultPushCopy } from "@/domain/communication-rules";
 import { DeliveryStatus, NotificationChannel } from "@/types/communication";
 import {
   deactivate,
   listActiveSubscriptions,
-  listActiveSubscriptionsForUser,
   markUsed,
 } from "@/repositories/push-repository";
 import { logDelivery } from "@/repositories/notification-repository";
@@ -14,18 +14,30 @@ import { findCommunicationById } from "@/repositories/communication-repository";
 
 export function vapidPublicKey(): string {
   const env = getEnv();
-  return env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY || env.WEB_PUSH_VAPID_PUBLIC_KEY;
+  return (
+    cleanEnvSecret(env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY) ||
+    cleanEnvSecret(env.WEB_PUSH_VAPID_PUBLIC_KEY)
+  );
 }
 
 function configureVapid(): { ok: true } | { ok: false; reason: string } {
   try {
     const env = getEnv();
     const publicKey = vapidPublicKey();
-    const privateKey = env.WEB_PUSH_VAPID_PRIVATE_KEY;
+    const privateKey = cleanEnvSecret(env.WEB_PUSH_VAPID_PRIVATE_KEY);
+    const subject = cleanVapidSubject(env.WEB_PUSH_SUBJECT);
     if (!publicKey || !privateKey) {
       return { ok: false, reason: "VAPID_NOT_CONFIGURED" };
     }
-    webPush.setVapidDetails(env.WEB_PUSH_SUBJECT, publicKey, privateKey);
+    // Validação mínima de tamanho (URL-safe base64 VAPID)
+    if (publicKey.length < 80 || privateKey.length < 40) {
+      logger.warn("vapid_keys_look_truncated", {
+        publicLen: publicKey.length,
+        privateLen: privateKey.length,
+      });
+      return { ok: false, reason: "VAPID_INVALID" };
+    }
+    webPush.setVapidDetails(subject, publicKey, privateKey);
     return { ok: true };
   } catch (error) {
     logger.error("vapid_configure_failed", { error: String(error) });
@@ -144,23 +156,24 @@ export async function sendWebPushForPublication(communicationId: string) {
   return { ...result, skipped: false as const };
 }
 
-/** Envia um push de teste só para o usuário atual (sem FK de comunicado). */
-export async function sendTestPushToUser(userId: string) {
+/** Admin: envia "Notificação Teste" para todos os dispositivos ativos. */
+export async function sendBroadcastTestPush() {
   const vapid = configureVapid();
   if (!vapid.ok) {
     return { ok: false as const, reason: vapid.reason, sent: 0, failed: 0 };
   }
-  const subscriptions = await listActiveSubscriptionsForUser(userId);
+  const subscriptions = await listActiveSubscriptions();
   if (subscriptions.length === 0) {
     return { ok: false as const, reason: "NO_SUBSCRIPTIONS", sent: 0, failed: 0 };
   }
   const payload: PushPayload = {
-    title: "Teste de notificação",
-    body: "Se você viu este aviso com som, o Web Push está ok neste aparelho.",
-    url: "/configuracoes",
+    title: "Notificação Teste",
+    body: "Este é um aviso de teste da Central de Comunicação Interna.",
+    url: "/",
     priority: "IMPORTANT",
   };
   const result = await dispatchToSubscriptions(subscriptions, payload, { log: false });
+  logger.info("web_push_broadcast_test", { ...result, total: subscriptions.length });
   return {
     ok: result.sent > 0,
     reason: result.sent > 0 ? "SENT" : "ALL_FAILED",

@@ -34,7 +34,7 @@ export default async function SettingsPage() {
         </div>
       </Card>
       <InstallAppCard variant="settings" />
-      <PushSettings />
+      <PushSettings canBroadcastTest={hasCommunicatorRole(user.roles)} />
     </div>
   );
 }
