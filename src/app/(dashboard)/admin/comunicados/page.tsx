@@ -38,12 +38,20 @@ export default async function AdminListPage({
       <PageHeader
         title="Comunicados"
         actions={
-          <Link
-            href="/admin/comunicados/novo"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover"
-          >
-            Novo
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/admin/agenda"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-fg hover:bg-muted"
+            >
+              Agenda
+            </Link>
+            <Link
+              href="/admin/comunicados/novo"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover"
+            >
+              Novo
+            </Link>
+          </div>
         }
       />
       <form className="flex flex-col gap-3 md:flex-row">
@@ -73,6 +81,7 @@ export default async function AdminListPage({
             <TH>Título</TH>
             <TH>Categoria</TH>
             <TH>Status</TH>
+            <TH>Agendado para</TH>
             <TH>Prioridade</TH>
             <TH>Visualizações</TH>
           </tr>
@@ -88,6 +97,15 @@ export default async function AdminListPage({
               <TD>{item.category.name}</TD>
               <TD>
                 <Badge>{statusLabel[item.status] ?? item.status}</Badge>
+              </TD>
+              <TD>
+                {item.scheduledPublishAt
+                  ? new Intl.DateTimeFormat("pt-BR", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                      timeZone: "America/Sao_Paulo",
+                    }).format(item.scheduledPublishAt)
+                  : "—"}
               </TD>
               <TD>{item.priority}</TD>
               <TD>{item._count.reads}</TD>

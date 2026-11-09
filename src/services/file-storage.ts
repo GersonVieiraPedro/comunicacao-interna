@@ -7,7 +7,7 @@ import { ValidationError } from "@/lib/errors";
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_BYTES = 2 * 1024 * 1024;
 
-export async function saveCoverFile(file: File): Promise<string> {
+async function saveImageFile(file: File, folder: "covers" | "inline"): Promise<string> {
   if (!ALLOWED.has(file.type)) {
     throw new ValidationError("Imagem deve ser JPEG, PNG ou WebP.");
   }
@@ -15,13 +15,21 @@ export async function saveCoverFile(file: File): Promise<string> {
     throw new ValidationError("Imagem deve ter no máximo 2 MB.");
   }
   const env = getEnv();
-  const dir = path.resolve(process.cwd(), env.FILE_STORAGE_DIR, "covers");
+  const dir = path.resolve(process.cwd(), env.FILE_STORAGE_DIR, folder);
   await mkdir(dir, { recursive: true });
   const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
   const filename = `${randomUUID()}.${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(path.join(dir, filename), buffer);
-  return `covers/${filename}`;
+  return `${folder}/${filename}`;
+}
+
+export async function saveCoverFile(file: File): Promise<string> {
+  return saveImageFile(file, "covers");
+}
+
+export async function saveInlineImage(file: File): Promise<string> {
+  return saveImageFile(file, "inline");
 }
 
 export function coverAbsolutePath(coverPath: string) {

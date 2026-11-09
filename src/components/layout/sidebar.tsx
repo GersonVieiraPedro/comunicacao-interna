@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, History, Home, Megaphone, Settings } from "lucide-react";
+import { Bell, CalendarClock, History, Home, Megaphone, Settings } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { appConfig } from "@/config/app";
 import { hasCommunicatorRole, type AppRole } from "@/types/roles";
@@ -18,6 +18,7 @@ export function navItems(roles: AppRole[]): { href: string; label: string; icon:
   ];
   if (hasCommunicatorRole(roles)) {
     items.push({ href: "/admin", label: "Admin", icon: Megaphone });
+    items.push({ href: "/admin/agenda", label: "Agenda", icon: CalendarClock });
   }
   return items;
 }

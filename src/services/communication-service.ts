@@ -25,6 +25,7 @@ import {
   listDueExpired,
   listDueScheduled,
   listPublishedForFeed,
+  listScheduledAgenda,
   listUnreadEligible,
   lowestReadRate,
   searchHistory,
@@ -297,14 +298,24 @@ export async function getAdminList(user: SessionUser | undefined, filters: Param
   return listAdmin(filters);
 }
 
+export async function getAdminAgenda(user: SessionUser | undefined) {
+  requireCommunicator(user);
+  return listScheduledAgenda(new Date());
+}
+
 export async function getAdminDashboard(user: SessionUser | undefined) {
   requireCommunicator(user);
   const eligible = await countEligibleCollaborators();
-  const [counts, lowest] = await Promise.all([countByStatus(), lowestReadRate(eligible)]);
+  const [counts, lowest, agenda] = await Promise.all([
+    countByStatus(),
+    lowestReadRate(eligible),
+    listScheduledAgenda(new Date()),
+  ]);
   return {
     counts,
     eligible,
     lowest,
+    agenda: agenda.slice(0, 5),
     total: Object.values(counts).reduce((sum, value) => sum + value, 0),
   };
 }

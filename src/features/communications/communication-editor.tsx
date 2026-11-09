@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarClock, FileText, Loader2, Megaphone, Send } from "lucide-react";
+import { CalendarClock, FileText, ImagePlus, Loader2, Megaphone, Send } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
@@ -12,6 +12,8 @@ import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/cn";
 import { parseDateTimeLocalInput } from "@/lib/datetime";
+import { composeDocument, parseDocument } from "@/features/communications/document-html";
+import { RichDocumentEditor } from "@/features/communications/rich-document-editor";
 import {
   actionCancel,
   actionCancelSchedule,
@@ -41,42 +43,6 @@ const PRIORITIES = [
   },
 ] as const;
 
-function hasAdvancedHtml(html: string): boolean {
-  return /<(ul|ol|li|a|img|h[1-6]|table|blockquote)\b/i.test(html);
-}
-
-function htmlToPlain(html: string): string {
-  if (!html) return "";
-  return html
-    .replace(/<\/p>\s*<p>/gi, "\n\n")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/?p>/gi, "")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/<[^>]+>/g, "")
-    .trim();
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function plainToHtml(text: string): string {
-  const trimmed = text.trim();
-  if (!trimmed) return "<p></p>";
-  if (/<[a-z][\s\S]*>/i.test(trimmed)) return trimmed;
-  return trimmed
-    .split(/\n{2,}/)
-    .map((block) => `<p>${escapeHtml(block).replace(/\n/g, "<br/>")}</p>`)
-    .join("");
-}
-
 function toDateTimeLocalValue(value: string | Date | null | undefined): string {
   if (!value) return "";
   const date = typeof value === "string" ? new Date(value) : value;
@@ -85,9 +51,14 @@ function toDateTimeLocalValue(value: string | Date | null | undefined): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function prepareFormData(form: HTMLFormElement, bodyValue: string, advancedHtml: boolean): FormData {
+function prepareFormData(
+  form: HTMLFormElement,
+  composedHtml: string,
+  coverPath: string,
+): FormData {
   const formData = new FormData(form);
-  formData.set("bodyHtml", advancedHtml ? bodyValue : plainToHtml(bodyValue));
+  formData.set("bodyHtml", composedHtml);
+  formData.set("coverPath", coverPath);
 
   for (const key of ["scheduledPublishAt", "expiresAt"] as const) {
     const raw = formData.get(key);
@@ -95,7 +66,7 @@ function prepareFormData(form: HTMLFormElement, bodyValue: string, advancedHtml:
     try {
       formData.set(key, parseDateTimeLocalInput(raw).toISOString());
     } catch {
-      // servidor valida e devolve mensagem clara
+      // servidor valida
     }
   }
   return formData;
@@ -121,18 +92,20 @@ export function CommunicationEditor({
   };
 }) {
   const router = useRouter();
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"draft" | "schedule" | "publish" | null>(null);
   const [priority, setPriority] = useState(initial?.priority ?? CommunicationPriority.NORMAL);
-  const [advancedHtml, setAdvancedHtml] = useState(() => hasAdvancedHtml(initial?.bodyHtml ?? ""));
-  const [bodyValue, setBodyValue] = useState(() => {
-    const html = initial?.bodyHtml ?? "";
-    return hasAdvancedHtml(html) ? html : htmlToPlain(html);
-  });
+  const [coverPath, setCoverPath] = useState(initial?.coverPath ?? "");
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [advancedSource, setAdvancedSource] = useState(false);
+  const parsed = useMemo(() => parseDocument(initial?.bodyHtml ?? "<p></p>"), [initial?.bodyHtml]);
+  const [headerHtml, setHeaderHtml] = useState(parsed.headerHtml);
+  const [bodyHtml, setBodyHtml] = useState(parsed.bodyHtml);
+  const [footerHtml, setFooterHtml] = useState(parsed.footerHtml);
   const [scheduleHint, setScheduleHint] = useState<string | null>(null);
 
   const isScheduled = initial?.status === CommunicationStatus.SCHEDULED;
-
   const scheduleDefault = useMemo(
     () => toDateTimeLocalValue(initial?.scheduledPublishAt),
     [initial?.scheduledPublishAt],
@@ -148,7 +121,10 @@ export function CommunicationEditor({
     setError(null);
     setBusy(kind);
     try {
-      const formData = prepareFormData(form, bodyValue, advancedHtml);
+      const composed = advancedSource
+        ? bodyHtml
+        : composeDocument({ headerHtml, bodyHtml, footerHtml });
+      const formData = prepareFormData(form, composed, coverPath);
       const result = await action(formData);
       if (!result.ok) {
         setError(result.message ?? "Não foi possível salvar.");
@@ -162,11 +138,16 @@ export function CommunicationEditor({
             body: JSON.stringify({ communicationId: result.id }),
           });
         } catch {
-          // publicação já ok; push é best-effort
+          // best-effort
         }
       }
-      if (result.id) router.push(`/admin/comunicados/${result.id}`);
-      else router.push("/admin/comunicados");
+      if (kind === "schedule") {
+        router.push("/admin/agenda");
+      } else if (result.id) {
+        router.push(`/admin/comunicados/${result.id}`);
+      } else {
+        router.push("/admin/comunicados");
+      }
       router.refresh();
     } finally {
       setBusy(null);
@@ -190,6 +171,26 @@ export function CommunicationEditor({
     }
   }
 
+  async function onCoverSelected(file: File | undefined) {
+    if (!file) return;
+    setUploadingCover(true);
+    setError(null);
+    try {
+      const body = new FormData();
+      body.set("file", file);
+      body.set("kind", "cover");
+      const response = await fetch("/api/media/upload", { method: "POST", body });
+      if (!response.ok) {
+        setError("Não foi possível enviar a imagem de capa.");
+        return;
+      }
+      const data = (await response.json()) as { path?: string };
+      if (data.path) setCoverPath(data.path);
+    } finally {
+      setUploadingCover(false);
+    }
+  }
+
   return (
     <form className="flex flex-col gap-5" onSubmit={(event) => event.preventDefault()}>
       {error ? (
@@ -199,7 +200,6 @@ export function CommunicationEditor({
       ) : null}
 
       <input type="hidden" name="id" value={initial?.id ?? ""} />
-      <input type="hidden" name="coverPath" value={initial?.coverPath ?? ""} />
       <input type="hidden" name="priority" value={priority} />
 
       <Card className="flex flex-col gap-4 border-accent/15 bg-gradient-to-br from-surface to-accent-subtle/30">
@@ -208,8 +208,8 @@ export function CommunicationEditor({
             <Icon icon={Megaphone} className="h-5 w-5" />
           </span>
           <div>
-            <h2 className="text-base font-semibold text-fg">Conteúdo</h2>
-            <p className="text-sm text-fg-muted">Título claro, resumo curto e texto do comunicado.</p>
+            <h2 className="text-base font-semibold text-fg">Identidade do comunicado</h2>
+            <p className="text-sm text-fg-muted">Título, resumo e capa usados no feed e nas notificações.</p>
           </div>
         </div>
         <Input name="title" label="Título" defaultValue={initial?.title} required placeholder="Ex.: Atualização do benefício VR" />
@@ -227,47 +227,101 @@ export function CommunicationEditor({
           placeholder="Uma ou duas frases para a notificação e o card do feed"
         />
         <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <label className="text-sm font-medium text-fg" htmlFor="body-editor">
-              Texto do comunicado
-            </label>
-            <button
+          <p className="text-sm font-medium text-fg">Imagem de capa</p>
+          {coverPath ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={`/api/media/${coverPath}`}
+              alt=""
+              className="max-h-48 w-full rounded-xl object-cover"
+            />
+          ) : (
+            <div className="flex h-28 items-center justify-center rounded-xl border border-dashed border-border bg-muted/40 text-sm text-fg-muted">
+              Sem capa
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button
               type="button"
-              className="text-xs font-medium text-accent underline-offset-2 hover:underline"
-              onClick={() => {
-                if (advancedHtml) {
-                  setBodyValue(htmlToPlain(bodyValue));
-                  setAdvancedHtml(false);
-                } else {
-                  setBodyValue(plainToHtml(bodyValue));
-                  setAdvancedHtml(true);
-                }
-              }}
+              variant="secondary"
+              disabled={uploadingCover}
+              onClick={() => coverInputRef.current?.click()}
             >
-              {advancedHtml ? "Usar editor simples" : "Editar HTML avançado"}
-            </button>
+              {uploadingCover ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+              {coverPath ? "Trocar capa" : "Enviar capa"}
+            </Button>
+            {coverPath ? (
+              <Button type="button" variant="ghost" onClick={() => setCoverPath("")}>
+                Remover capa
+              </Button>
+            ) : null}
           </div>
-          <textarea
-            id="body-editor"
-            name="bodyHtml"
-            value={bodyValue}
-            onChange={(event) => setBodyValue(event.target.value)}
-            className={cn(
-              "min-h-52 rounded-lg border border-border bg-surface px-3 py-2.5 text-sm leading-relaxed text-fg shadow-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20",
-              advancedHtml && "font-mono text-[13px]",
-            )}
-            placeholder={
-              advancedHtml
-                ? "<p>Parágrafo com <strong>destaque</strong>...</p>"
-                : "Escreva o comunicado. Use uma linha em branco para separar parágrafos."
-            }
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              void onCoverSelected(file);
+            }}
           />
-          <p className="text-xs text-fg-muted">
-            {advancedHtml
-              ? "HTML simples (parágrafos, listas, links). Scripts são removidos no servidor."
-              : "O texto vira parágrafos automaticamente na publicação."}
-          </p>
         </div>
+      </Card>
+
+      <Card className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-muted text-fg">
+              <Icon icon={FileText} className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-base font-semibold text-fg">Painel de edição</h2>
+              <p className="text-sm text-fg-muted">
+                Cabeçalho, corpo e rodapé com formatação profissional para o time de comunicação.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="text-xs font-medium text-accent underline-offset-2 hover:underline"
+            onClick={() => {
+              if (advancedSource) {
+                const next = parseDocument(bodyHtml);
+                setHeaderHtml(next.headerHtml);
+                setBodyHtml(next.bodyHtml);
+                setFooterHtml(next.footerHtml);
+                setAdvancedSource(false);
+              } else {
+                setBodyHtml(composeDocument({ headerHtml, bodyHtml, footerHtml }));
+                setAdvancedSource(true);
+              }
+            }}
+          >
+            {advancedSource ? "Voltar ao painel visual" : "Editar HTML avançado"}
+          </button>
+        </div>
+
+        {advancedSource ? (
+          <textarea
+            value={bodyHtml}
+            onChange={(event) => setBodyHtml(event.target.value)}
+            className="min-h-72 rounded-xl border border-border bg-surface px-3 py-2.5 font-mono text-[13px] leading-relaxed shadow-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+            spellCheck={false}
+          />
+        ) : (
+          <RichDocumentEditor
+            headerHtml={headerHtml}
+            bodyHtml={bodyHtml}
+            footerHtml={footerHtml}
+            onChange={(next) => {
+              setHeaderHtml(next.headerHtml);
+              setBodyHtml(next.bodyHtml);
+              setFooterHtml(next.footerHtml);
+            }}
+          />
+        )}
       </Card>
 
       <Card className="flex flex-col gap-4">
@@ -321,7 +375,7 @@ export function CommunicationEditor({
           <div>
             <h2 className="text-base font-semibold text-fg">Publicação</h2>
             <p className="text-sm text-fg-muted">
-              Agende no horário deste dispositivo. Publicação automática ao abrir o app após o horário (e pelo job diário).
+              Agende no horário deste dispositivo. Itens agendados ficam na Agenda do admin para revisão.
             </p>
           </div>
         </div>
@@ -338,7 +392,7 @@ export function CommunicationEditor({
         {scheduleHint ? <p className="text-xs text-fg-muted">{scheduleHint}</p> : null}
         {isScheduled ? (
           <Alert title="Já agendado" tone="info">
-            Este comunicado está aguardando a data marcada. Você pode remarcar ou cancelar o agendamento.
+            Este comunicado está na Agenda. Você pode remarcar, editar o conteúdo ou cancelar o agendamento.
           </Alert>
         ) : null}
         <label className="flex flex-col gap-1.5 text-sm font-medium text-fg">

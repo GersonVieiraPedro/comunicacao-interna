@@ -131,6 +131,23 @@ export async function searchHistory(filters: HistoryFilters) {
   return { total, items };
 }
 
+export async function listScheduledAgenda(now = new Date()) {
+  return prisma.communication.findMany({
+    where: {
+      status: CommunicationStatus.SCHEDULED,
+      scheduledPublishAt: { not: null },
+    },
+    include: { category: true, author: true },
+    orderBy: { scheduledPublishAt: "asc" },
+    take: 100,
+  }).then((items) =>
+    items.map((item) => ({
+      ...item,
+      isDue: Boolean(item.scheduledPublishAt && item.scheduledPublishAt <= now),
+    })),
+  );
+}
+
 export async function listAdmin(filters: {
   status?: string;
   categoryId?: string;
