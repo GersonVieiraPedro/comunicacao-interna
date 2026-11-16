@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Barlow } from "next/font/google";
 import { appConfig } from "@/config/app";
-// @ts-expect-error Next.js processes this side-effect stylesheet import.
 import "./globals.css";
 
 const barlow = Barlow({
@@ -20,7 +19,6 @@ export const metadata: Metadata = {
   icons: {
     icon: [{ url: "/logo-metarh-branco-fundo-roxo.png", type: "image/png" }],
     apple: [{ url: "/logo-metarh-branco-fundo-roxo.png", type: "image/png" }],
- 
   },
 };
 
