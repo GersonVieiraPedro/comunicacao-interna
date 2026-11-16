@@ -50,7 +50,7 @@ export default async function HomePage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-7">
       <PageHeader
-        eyebrow={effectiveRole === AppRole.CLIENT ? "Cliente" : "Central"}
+        eyebrow={effectiveRole === AppRole.CLIENT ? "Cliente" : "METARH NEWS"}
         title={`Oi, ${firstName}`}
         description={
           effectiveRole === AppRole.CLIENT

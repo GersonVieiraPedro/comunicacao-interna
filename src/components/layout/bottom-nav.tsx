@@ -19,10 +19,11 @@ export function BottomNav({
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-surface/95 shadow-[0_-8px_24px_rgba(71,0,130,0.06)] backdrop-blur-md md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-surface shadow-[0_-8px_24px_rgba(71,0,130,0.06)] md:hidden"
       aria-label="Navegação inferior"
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      <div className="mx-auto flex max-w-lg sf-safe-bottom">
+      <div className="mx-auto flex max-w-lg">
         {items.map((item) => {
           const active =
             item.href === "/"
@@ -33,7 +34,7 @@ export function BottomNav({
               key={item.href}
               href={item.href}
               className={cn(
-                "relative flex min-h-[var(--sf-bottom-nav-h)] flex-1 flex-col items-center justify-center gap-1 px-1 text-[11px] font-semibold transition-colors",
+                "relative flex h-[var(--sf-bottom-nav-h)] flex-1 flex-col items-center justify-center gap-1 px-1 text-[11px] font-semibold transition-colors",
                 active ? "text-accent" : "text-fg-muted hover:text-fg",
               )}
             >
@@ -53,6 +54,11 @@ export function BottomNav({
           );
         })}
       </div>
+      {/* Preenche o espaço do overscroll elástico (iOS/Android) abaixo da barra. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-full h-[100dvh] bg-surface"
+      />
     </nav>
   );
 }

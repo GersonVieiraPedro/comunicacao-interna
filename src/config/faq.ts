@@ -16,7 +16,7 @@ export const faqItems: FaqItem[] = [
   },
   {
     id: "contato",
-    question: "Como falo com o atendimento MetaRH?",
+    question: "Como falo com o atendimento METARH?",
     answer:
       "Use o e-mail de atendimento disponível na página de Contato ou Links úteis. Clientes também podem usar o canal de CS (WhatsApp ou e-mail).",
   },
@@ -24,6 +24,6 @@ export const faqItems: FaqItem[] = [
     id: "candidato",
     question: "Por que meu perfil é Candidato?",
     answer:
-      "Quem está sem contrato ativo passa automaticamente ao perfil Candidato, com acesso às redes MetaRH e às vagas no Selecty.",
+      "Quem está sem contrato ativo passa automaticamente ao perfil Candidato, com acesso às redes METARH e às vagas no Selecty.",
   },
 ];

@@ -4,7 +4,7 @@ import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/cn";
 
 const items = [
-  { key: "site", label: "Site MetaRH", href: institutionalLinks.site, icon: Globe },
+  { key: "site", label: "Site", href: institutionalLinks.site, icon: Globe },
   { key: "instagram", label: "Instagram", href: institutionalLinks.instagram, icon: Instagram },
   { key: "linkedin", label: "LinkedIn", href: institutionalLinks.linkedin, icon: Linkedin },
   { key: "youtube", label: "YouTube", href: institutionalLinks.youtube, icon: Youtube },

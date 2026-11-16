@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Barlow } from "next/font/google";
 import { appConfig } from "@/config/app";
+// @ts-expect-error Next.js processes this side-effect stylesheet import.
 import "./globals.css";
 
 const barlow = Barlow({
@@ -13,12 +14,13 @@ const barlow = Barlow({
 
 export const metadata: Metadata = {
   title: appConfig.name,
-  description: "Central de Comunicação Interna — Meta RH",
+  description: "Comunicados e canais oficiais METARH",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "Central", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: appConfig.shortName, statusBarStyle: "default" },
   icons: {
-    icon: [{ url: "/logo-metarh-roxo.png", type: "image/png" }],
-    apple: [{ url: "/logo-metarh-roxo.png", type: "image/png" }],
+    icon: [{ url: "/logo-metarh-branco-fundo-roxo.png", type: "image/png" }],
+    apple: [{ url: "/logo-metarh-branco-fundo-roxo.png", type: "image/png" }],
+ 
   },
 };
 
@@ -31,7 +33,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR" className={barlow.variable} suppressHydrationWarning>
-      <body className="min-h-screen font-sans antialiased" suppressHydrationWarning >
+      <body className="min-h-dvh font-sans antialiased" suppressHydrationWarning>
         {children}
       </body>
     </html>

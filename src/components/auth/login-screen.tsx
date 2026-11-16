@@ -17,7 +17,7 @@ export function LoginScreen({ error }: { error?: string | null }) {
         <div className="pointer-events-none absolute bottom-20 left-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" aria-hidden />
         <div className="absolute bottom-0 left-0 h-1.5 w-full bg-spark" aria-hidden />
         <div className="relative">
-          <p className="text-sm font-semibold tracking-[0.18em] text-white/75">META RH</p>
+          <p className="text-sm font-semibold tracking-[0.18em] text-white/75">{appConfig.brand}</p>
           <h1 className="mt-8 max-w-md text-5xl font-bold leading-[1.05] tracking-tight">
             {appConfig.name}
           </h1>
@@ -41,14 +41,14 @@ export function LoginScreen({ error }: { error?: string | null }) {
         </div>
         <p className="relative flex items-center gap-2 text-sm text-white/75">
           <Icon icon={Sparkles} className="text-spark" />
-          Identidade Meta RH
+          Identidade {appConfig.brand}
         </p>
       </section>
 
       <section className="relative flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-md">
           <div className="mb-8 lg:hidden">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">Meta RH</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">{appConfig.brand}</p>
             <h1 className="mt-1 text-3xl font-bold tracking-tight text-fg">{appConfig.name}</h1>
             <p className="mt-2 text-sm text-fg-muted">Entre para ver os comunicados da empresa.</p>
           </div>

@@ -31,7 +31,7 @@ export function isStandaloneDisplay() {
 export function pushSupportMessage(): string | null {
   if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
     if (isIosDevice() && !isStandaloneDisplay()) {
-      return "No iPhone, abra a Central pelo ícone da Tela de Início para ativar notificações.";
+      return "No iPhone, abra o METARH NEWS pelo ícone da Tela de Início para ativar notificações.";
     }
     return "Este navegador não oferece Web Push.";
   }

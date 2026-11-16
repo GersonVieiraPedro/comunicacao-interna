@@ -6,7 +6,7 @@ export type UsefulLink = { id: string; label: string; href: string; description?
 export const usefulLinks: UsefulLink[] = [
   {
     id: "site",
-    label: "Site MetaRH",
+    label: "Site METARH",
     href: institutionalLinks.site,
     description: "Institucional e soluções",
   },
@@ -18,7 +18,7 @@ export const usefulLinks: UsefulLink[] = [
   },
   {
     id: "blog",
-    label: "Blog / MetaNews",
+    label: "Blog / METARH NEWS",
     href: "https://metarh.com.br/metarhnews/",
   },
   {

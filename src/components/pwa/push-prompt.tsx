@@ -44,7 +44,7 @@ export function PushPrompt() {
 
   return (
     <div className="mb-2">
-      <Alert title="Quer receber avisos importantes da Central?" tone="info">
+      <Alert title="Quer receber avisos importantes do METARH NEWS?" tone="info">
         <p className="mt-1 text-sm text-fg-muted">
           Ative as notificações para saber na hora quando um comunicado for publicado.
         </p>

@@ -14,11 +14,10 @@ export function Header({ user, unreadNotifications = 0 }: { user: SessionUser; u
       <Link href="/" className="min-w-0 md:hidden flex gap-2 items-center" title={appConfig.name} aria-label={appConfig.name}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo-metarh-roxo.png" alt="" className="h-8 w-auto" />
-        <div>
-          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-accent/70">METARH</p>
+        <div className="min-w-0">
+          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-accent/70">{appConfig.brand}</p>
           <p className="truncate text-[10px] font-semibold text-fg">{appConfig.name}</p>
         </div>
-
       </Link>
       <form action="/historico" className="hidden min-w-0 flex-1 md:block" role="search">
         <label className="sr-only" htmlFor="header-search">

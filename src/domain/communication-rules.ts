@@ -96,7 +96,7 @@ export function computeObservabilityMetrics(input: {
 
 export function defaultPushCopy() {
   return {
-    title: "Nova comunicação interna",
-    body: "Confira o novo comunicado publicado.",
+    title: "Novo comunicado",
+    body: "Confira o comunicado publicado.",
   };
 }

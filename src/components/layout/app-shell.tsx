@@ -14,7 +14,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-transparent pb-[calc(var(--sf-bottom-nav-h)+env(safe-area-inset-bottom))] md:pb-0">
+    <div className="flex min-h-dvh bg-transparent pb-[calc(var(--sf-bottom-nav-h)+env(safe-area-inset-bottom,0px))] md:pb-0">
       <Sidebar roles={user.roles} effectiveRole={user.effectiveRole} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header user={user} unreadNotifications={unreadNotifications} />

@@ -1,5 +1,5 @@
 /**
- * Links institucionais MetaRH (referência: metarh.com.br / Selecty).
+ * Links institucionais METARH (referência: metarh.com.br / Selecty).
  * Overrides opcionais via NEXT_PUBLIC_* para ambientes de teste.
  */
 export const institutionalLinks = {

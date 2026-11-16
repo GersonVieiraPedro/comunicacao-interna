@@ -9,20 +9,20 @@ export default function VagasPage() {
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <PageHeader
         title="Vagas Selecty"
-        description="Oportunidades publicadas pela MetaRH no portal Selecty."
+        description="Oportunidades publicadas pela METARH no portal Selecty."
       />
       <InstitutionalLinks />
       <Card className="flex flex-col gap-4">
         <p className="text-center text-sm text-fg-muted sm:text-left">
           Abrimos o portal oficial de vagas. Não há sincronização automática neste ciclo — o link
-          aponta para o Selecty MetaRH.
+          aponta para o Selecty METARH.
         </p>
         <ActionBar>
           <ButtonLink href={institutionalLinks.selecty}>Abrir metarh.selecty.com.br</ButtonLink>
         </ActionBar>
         <div className="overflow-hidden rounded-xl border border-border">
           <iframe
-            title="Vagas MetaRH Selecty"
+            title="Vagas METARH Selecty"
             src={institutionalLinks.selecty}
             className="h-[28rem] w-full bg-white"
           />

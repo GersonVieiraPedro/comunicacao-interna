@@ -1,4 +1,4 @@
-/* Central de Comunicação Interna — service worker (push + click) */
+/* METARH NEWS — service worker (push + click) */
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
 });
@@ -9,8 +9,8 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("push", (event) => {
   let data = {
-    title: "Nova comunicação interna",
-    body: "Confira o novo comunicado publicado.",
+    title: "Novo comunicado",
+    body: "Confira o comunicado publicado.",
     url: "/",
     priority: "NORMAL",
     communicationId: null,
@@ -25,18 +25,20 @@ self.addEventListener("push", (event) => {
   // Tag única evita substituição silenciosa da notificação anterior no iOS/Android
   const tag = `cci-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+  // Título = só o comunicado (sem prefixo do nome do app; o SO já atribui a origem).
+  const title = String(data.title || "Novo comunicado").trim();
+
   event.waitUntil(
-    self.registration.showNotification(data.title || "Nova comunicação interna", {
-      body: data.body || "Confira o novo comunicado publicado.",
-      icon: "/icon.svg",
-      badge: "/icon.svg",
+    self.registration.showNotification(title, {
+      body: data.body || "Confira o comunicado publicado.",
+      icon: "/logo-metarh-branco-fundo-roxo.png",
+      badge: "/logo-metarh-branco-fundo-roxo.png",
       data: {
         url: data.url || "/",
         communicationId: data.communicationId || null,
       },
       tag,
       renotify: true,
-      // explícito: tocar som padrão do sistema
       silent: false,
       requireInteraction: urgent,
       vibrate: urgent ? [220, 100, 220, 100, 220] : [180, 80, 180],

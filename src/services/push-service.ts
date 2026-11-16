@@ -179,7 +179,7 @@ export async function sendBroadcastTestPush() {
   }
   const body = JSON.stringify({
     title: "Notificação Teste",
-    body: "Este é um aviso de teste da Central de Comunicação Interna.",
+    body: "Este é um aviso de teste do METARH NEWS.",
     url: "/",
     priority: "IMPORTANT",
   } satisfies PushPayload);

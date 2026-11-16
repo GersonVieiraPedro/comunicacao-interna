@@ -68,7 +68,7 @@ export function InstallAppCard({ variant = "banner" }: { variant?: "banner" | "s
     return (
       <Card>
         <p className="font-medium">Aplicativo</p>
-        <p className="mt-1 text-sm text-fg-muted">A Central já está aberta como aplicativo neste aparelho.</p>
+        <p className="mt-1 text-sm text-fg-muted">O METARH NEWS já está aberto como aplicativo neste aparelho.</p>
       </Card>
     );
   }
@@ -84,7 +84,7 @@ export function InstallAppCard({ variant = "banner" }: { variant?: "banner" | "s
         <ActionBar className="mt-3">
           <Button onClick={install} disabled={busy}>
             <Download className="h-4 w-4" aria-hidden />
-            Instalar a Central
+            Instalar METARH NEWS
           </Button>
           {variant === "banner" ? (
             <Button

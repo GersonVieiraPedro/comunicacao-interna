@@ -4,7 +4,7 @@ import { composeDocument, parseDocument } from "@/features/communications/docume
 describe("document-html", () => {
   it("compõe cabeçalho, corpo e rodapé", () => {
     const html = composeDocument({
-      headerHtml: "<p>Meta RH</p>",
+      headerHtml: "<p>METARH</p>",
       bodyHtml: "<p>Conteúdo</p>",
       footerHtml: "<p>Dúvidas no canal</p>",
     });

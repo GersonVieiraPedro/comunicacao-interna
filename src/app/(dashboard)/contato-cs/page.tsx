@@ -10,7 +10,7 @@ export default function ContatoCsPage() {
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <PageHeader
         title="Customer Success"
-        description="Canal direto com o time de CS da MetaRH via WhatsApp ou e-mail."
+        description="Canal direto com o time de CS da METARH via WhatsApp ou e-mail."
       />
       <InstitutionalLinks compact showFacebook={false} />
       <Card className="flex flex-col gap-4">

@@ -248,7 +248,7 @@ export function Sidebar({
               )}
             >
               <p className="whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.14em] text-white/60">
-                METARH
+                {appConfig.brand}
               </p>
               <p className="truncate text-sm font-semibold tracking-tight text-white">{appConfig.name}</p>
             </div>

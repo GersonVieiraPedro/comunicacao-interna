@@ -10,7 +10,7 @@ export default async function NotificationsPage() {
   const items = await listNotifications(session!.user.id);
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4">
-      <PageHeader title="Notificações" description="Avisos in-app das publicações." />
+      <PageHeader title="Notificações" description="Avisos internos das publicações." />
       {items.length === 0 ? (
         <EmptyState title="Nenhuma notificação" icon={Bell} />
       ) : (

@@ -35,6 +35,20 @@ const config: Config = {
         DEFAULT: "var(--sf-shadow)",
         lg: "var(--sf-shadow-lg)",
       },
+      keyframes: {
+        "sf-shimmer": {
+          "0%": { backgroundPosition: "200% 0" },
+          "100%": { backgroundPosition: "-200% 0" },
+        },
+        "sf-pulse-soft": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.55" },
+        },
+      },
+      animation: {
+        "sf-shimmer": "sf-shimmer 1.6s ease-in-out infinite",
+        "sf-pulse-soft": "sf-pulse-soft 1.4s ease-in-out infinite",
+      },
     },
   },
   plugins: [],

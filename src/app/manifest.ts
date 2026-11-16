@@ -4,8 +4,8 @@ import { appConfig } from "@/config/app";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: appConfig.name,
-    short_name: "Central",
-    description: "Central de Comunicação Interna",
+    short_name: appConfig.shortName,
+    description: "Comunicados e canais oficiais METARH",
     start_url: "/",
     display: "standalone",
     background_color: "#f7f4fb",

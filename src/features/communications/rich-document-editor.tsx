@@ -358,7 +358,7 @@ export function RichDocumentEditor({
         label="Cabeçalho"
         hint="Faixa institucional, saudação ou chamada no topo do comunicado."
         value={headerHtml}
-        placeholder="Ex.: Comunicação Interna · Meta RH"
+        placeholder="Ex.: Comunicação Interna · METARH"
         minHeightClass="min-h-28"
         onChange={(html) => onChange({ headerHtml: html, bodyHtml, footerHtml })}
       />
