@@ -3,10 +3,10 @@ import { mapGroupsToRoles } from "@/services/identity-service";
 import { AppRole } from "@/types/roles";
 
 describe("mapGroupsToRoles", () => {
-  it("concede COMMUNICATOR quando o grupo está presente", () => {
+  it("concede METARH quando o grupo está presente", () => {
     expect(mapGroupsToRoles(["g-com"], ["g-com"])).toEqual([
       AppRole.COLLABORATOR,
-      AppRole.COMMUNICATOR,
+      AppRole.METARH,
     ]);
   });
 

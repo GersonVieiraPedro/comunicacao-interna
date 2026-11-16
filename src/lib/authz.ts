@@ -1,30 +1,48 @@
 import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
-import type { AppRole } from "@/types/roles";
+import {
+  AppRole,
+  canonicalizeRoles,
+  hasMetarhRole,
+  type AppRole as Role,
+} from "@/types/roles";
 
 export type SessionUser = {
   id: string;
   email: string;
   name: string;
-  roles: AppRole[];
+  roles: Role[];
+  contractStatus?: string | null;
+  effectiveRole?: Role;
 };
 
 export function requireUser(user: SessionUser | undefined): SessionUser {
-  if (!user) throw new UnauthorizedError();
+  if (!user?.id?.trim()) throw new UnauthorizedError();
   return user;
 }
 
-export function requireRole(user: SessionUser | undefined, roles: AppRole[]): SessionUser {
+export function requireRole(user: SessionUser | undefined, roles: Role[]): SessionUser {
   const current = requireUser(user);
-  if (!roles.some((role) => current.roles.includes(role))) {
+  const normalized = canonicalizeRoles(current.roles);
+  if (!roles.some((role) => normalized.includes(role))) {
     throw new ForbiddenError();
   }
   return current;
 }
 
-export function hasRole(user: SessionUser | undefined, role: AppRole): boolean {
-  return Boolean(user?.roles.includes(role));
+export function hasRole(user: SessionUser | undefined, role: Role): boolean {
+  if (!user) return false;
+  return canonicalizeRoles(user.roles).includes(role);
 }
 
+export function requireMetarh(user: SessionUser | undefined): SessionUser {
+  return requireRole(user, [AppRole.METARH]);
+}
+
+/** @deprecated use requireMetarh */
 export function requireCommunicator(user: SessionUser | undefined): SessionUser {
-  return requireRole(user, ["COMMUNICATOR"]);
+  return requireMetarh(user);
+}
+
+export function isMetarhUser(user: SessionUser | undefined): boolean {
+  return hasMetarhRole(user?.roles ?? []);
 }

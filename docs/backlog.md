@@ -1,8 +1,9 @@
 # Backlog — Central de Comunicação Interna
 
-Atualizado: **2026-11-09**  
+Atualizado: **2026-11-16**  
 App: `apps/comunicacao-interna` · Deploy piloto: Vercel Hobby  
-Auth atual: **e-mail/senha interno (Auth.js JWT)**; Entra ID opcional/futuro.
+Auth atual: **e-mail/senha interno (Auth.js JWT)**; Entra ID opcional/futuro.  
+Evolução: **quatro perfis + audiência filtrada + institucional** (ADR-010).
 
 Legenda de status: `feito` · `em andamento` · `a fazer` · `pós-MVP`
 
@@ -13,9 +14,9 @@ Legenda de status: `feito` · `em andamento` · `a fazer` · `pós-MVP`
 | Situação | Epics | Nota |
 | --- | --- | --- |
 | **Feitas** | E1–E11 | Núcleo do MVP entregue e em uso no piloto |
-| **Em andamento** | E12, E13 | Qualidade de fechamento + endurecimento do piloto |
+| **Em andamento** | E12, E13, **E26** | Fechamento piloto + perfis MetaRH / segmentação |
 | **Falta para finalizar o projeto** | E14–E17 | Go-live sustentável (mídia, jobs, HITL, E2E auth) |
-| **Pós-MVP (fora do fechamento)** | E18+ | Segmentação, Entra obrigatório, canais extras, BI |
+| **Pós-MVP (fora do fechamento)** | E18+ | Entra obrigatório, canais extras, sync RH, BI |
 
 ---
 
@@ -155,6 +156,7 @@ Legenda de status: `feito` · `em andamento` · `a fazer` · `pós-MVP`
 | E13.4 | Checklist operacional de seed/reset pós-deploy | Doc passo a passo no `deployment.md` | a fazer |
 | E13.5 | Revisão humana do piloto (HITL de uso real) | Feedback de 1 comunicador + N colaboradores | a fazer |
 | E13.6 | Observabilidade entrega/visão/ciência | Recebeu, visualizou, abriu notificação, confirmou ciência; dashboard e detalhe admin | feito |
+| E13.7 | Fila de fan-out (in-app + push) | Publicar não espera 300 envios; `delivery_jobs` em lotes + cron/`after` | feito |
 
 \*Código de fan-out já envia título/resumo; validar em todos os caminhos (teste admin vs publicação).
 
@@ -208,13 +210,29 @@ Escopo de **fechamento do MVP / go-live sustentável** (não features de produto
 | ID | Epic / item | Notas |
 | --- | --- | --- |
 | E18 | Entra ID corporativo (SSO) como padrão | Voltar ao desenho original do product |
-| E19 | Segmentação de audiência (departamento/unidade) | Modelo já preparado (`audience`); UI/regras depois |
+| E19 | Segmentação legada (departamento/unidade) | Substituída por E26 (filtros RH/contrato) |
 | E20 | Despublicar / arquivar publicado | Fora do MVP atual |
 | E21 | E-mail / Teams / canais extras | Evento de domínio já existe; canais novos |
 | E22 | Texto/template custom de push por comunicado | Além do título/resumo |
 | E23 | App nativo | Fora de escopo |
 | E24 | BI / dashboards avançados | Fora de escopo |
 | E25 | Multi-tenant | Fora de escopo |
+| E27 | Sync ERP/folha dos atributos RH | Após E26 estável |
+| E28 | Motor NPS/CSAT nativo | Hoje só links |
+
+---
+
+## E26 — Perfis MetaRH, institucional e filtros de envio
+**Status:** em andamento  
+**Valor:** quatro perfis alinhados ao negócio; redes/site/YouTube; disparo segmentado.
+
+| ID | Item | Aceite | Status |
+| --- | --- | --- | --- |
+| E26.1 | Docs product/architecture/ADR-010 | Personas, matriz, FILTERED documentados | feito |
+| E26.2 | Bloco institucional (site/redes/YouTube) | Visível em todos os perfis; URLs MetaRH | feito |
+| E26.3 | Papéis METARH/CLIENT/COLLABORATOR/CANDIDATE + campos RH | AuthZ + candidato automático sem contrato ativo | feito |
+| E26.4 | Filtros de envio + preview de contagem | Targets AND; fan-out só elegíveis | feito |
+| E26.5 | Superfícies Cliente / Colaborador / Candidato | CS, FAQ/links, NPS/CSAT, Selecty | feito |
 
 ---
 

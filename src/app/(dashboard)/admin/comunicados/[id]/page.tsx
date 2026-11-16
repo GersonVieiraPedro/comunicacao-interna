@@ -98,6 +98,11 @@ export default async function AdminCommunicationPage({ params }: { params: Promi
             coverPath: item.coverPath,
             scheduledPublishAt: item.scheduledPublishAt,
             expiresAt: item.expiresAt,
+            audienceType: item.audienceType,
+            targets: item.targets?.map((target) => ({
+              targetType: target.targetType,
+              targetValue: target.targetValue,
+            })),
           }}
         />
       ) : (

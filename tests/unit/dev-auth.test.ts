@@ -44,4 +44,21 @@ describe("isEntraConfigured", () => {
     vi.stubEnv("AUTH_MICROSOFT_ENTRA_ID_ISSUER", "https://login.microsoftonline.com/ci/v2.0");
     expect(isEntraConfigured()).toBe(false);
   });
+
+  it("recusa issuer com tenant inválido (ex.: /ci/)", () => {
+    vi.stubEnv("AUTH_MICROSOFT_ENTRA_ID_ID", "540b1267-b84d-4dc9-9331-aaaaaaaaaaaa");
+    vi.stubEnv("AUTH_MICROSOFT_ENTRA_ID_SECRET", "not-a-placeholder-secret-value");
+    vi.stubEnv("AUTH_MICROSOFT_ENTRA_ID_ISSUER", "https://login.microsoftonline.com/ci/v2.0");
+    expect(isEntraConfigured()).toBe(false);
+  });
+
+  it("aceita issuer com tenant GUID", () => {
+    vi.stubEnv("AUTH_MICROSOFT_ENTRA_ID_ID", "540b1267-b84d-4dc9-9331-aaaaaaaaaaaa");
+    vi.stubEnv("AUTH_MICROSOFT_ENTRA_ID_SECRET", "not-a-placeholder-secret-value");
+    vi.stubEnv(
+      "AUTH_MICROSOFT_ENTRA_ID_ISSUER",
+      "https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0",
+    );
+    expect(isEntraConfigured()).toBe(true);
+  });
 });

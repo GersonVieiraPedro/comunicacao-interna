@@ -1,12 +1,22 @@
 # Notificações
 
-Publicação efetiva (agora ou cron) gera um evento de domínio e faz fan-out:
+Publicação efetiva (agora ou cron) gera um evento de domínio e **enfileira** o fan-out (`delivery_jobs`):
 
-1. **In-app** — uma linha em `notifications` por usuário provisionado
-2. **Web Push** — `web-push` + VAPID para `push_subscriptions.active`
-3. Futuro: e-mail / Teams no mesmo serviço, não implementado
+1. Resposta de “publicado” retorna assim que o status e o job estão gravados
+2. Worker processa em lotes:
+   - **In-app** — sempre (100 usuários por tick)
+   - **Web Push** — só se prioridade for **Importante** ou **Urgente** (40 subscriptions/tick, concorrência 8)
+3. Futuro: e-mail / Teams no mesmo serviço de fila, não implementado
 
-Falha de push **não** desfaz a publicação. 410/404 desativa a subscription.
+| Prioridade | In-app | Push |
+| --- | --- | --- |
+| Normal | sim | não |
+| Importante | sim | sim |
+| Urgente | sim (+ popup) | sim (mais destaque no SO) |
+
+Workers: `after()` pós-publish, tick em visitas autenticadas, `/api/cron/process-delivery-queue` e o cron de agenda.
+
+Falha de push **não** desfaz a publicação. 410/404 desativa a subscription. Ver ADR 009.
 
 ## Texto (MVP)
 

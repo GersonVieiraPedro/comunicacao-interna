@@ -15,12 +15,12 @@ export function AppShell({
 }) {
   return (
     <div className="flex min-h-screen bg-transparent pb-[calc(var(--sf-bottom-nav-h)+env(safe-area-inset-bottom))] md:pb-0">
-      <Sidebar roles={user.roles} />
+      <Sidebar roles={user.roles} effectiveRole={user.effectiveRole} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header user={user} unreadNotifications={unreadNotifications} />
         <main className="flex-1 px-4 py-5 md:px-8 md:py-7">{children}</main>
       </div>
-      <BottomNav roles={user.roles} />
+      <BottomNav roles={user.roles} effectiveRole={user.effectiveRole} />
     </div>
   );
 }

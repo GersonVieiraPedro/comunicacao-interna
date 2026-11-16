@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ActionBar, Button } from "@/components/ui/button";
 import { classifyPwaInstall, isIosDevice, isStandaloneDisplay, type PwaInstallKind } from "@/lib/pwa-install";
 
 const DISMISS_KEY = "cci-install-dismissed";
@@ -81,8 +81,8 @@ export function InstallAppCard({ variant = "banner" }: { variant?: "banner" | "s
         <p className="mt-1 text-sm text-fg-muted">
           Um toque: ícone na tela inicial, tela cheia, sem a barra do navegador.
         </p>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <Button onClick={install} disabled={busy} className="min-h-11">
+        <ActionBar className="mt-3">
+          <Button onClick={install} disabled={busy}>
             <Download className="h-4 w-4" aria-hidden />
             Instalar a Central
           </Button>
@@ -97,7 +97,7 @@ export function InstallAppCard({ variant = "banner" }: { variant?: "banner" | "s
               Agora não
             </Button>
           ) : null}
-        </div>
+        </ActionBar>
       </Card>
     );
   }
@@ -113,16 +113,17 @@ export function InstallAppCard({ variant = "banner" }: { variant?: "banner" | "s
         <li>Adicionar à Tela de Início.</li>
       </ol>
       {variant === "banner" ? (
-        <Button
-          variant="ghost"
-          className="mt-2"
-          onClick={() => {
-            localStorage.setItem(DISMISS_KEY, "1");
-            setDismissed(true);
-          }}
-        >
-          Já entendi
-        </Button>
+        <ActionBar className="mt-3">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              localStorage.setItem(DISMISS_KEY, "1");
+              setDismissed(true);
+            }}
+          >
+            Já entendi
+          </Button>
+        </ActionBar>
       ) : null}
     </Card>
   );

@@ -1,7 +1,7 @@
 import type { User } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { AppRole } from "@/types/roles";
-import { AppRole as Role } from "@/types/roles";
+import { AppRole as Role, canonicalizeRoles } from "@/types/roles";
 
 export async function findUserByEntraId(entraObjectId: string) {
   return prisma.user.findUnique({
@@ -38,7 +38,14 @@ export async function listUsers(filters?: { q?: string; activeOnly?: boolean }) 
           }
         : {}),
     },
-    include: { roles: true },
+    include: {
+      roles: true,
+      _count: {
+        select: {
+          pushSubscriptions: { where: { active: true } },
+        },
+      },
+    },
     orderBy: { displayName: "asc" },
     take: 200,
   });
@@ -46,6 +53,20 @@ export async function listUsers(filters?: { q?: string; activeOnly?: boolean }) 
 
 export async function countActiveUsers() {
   return prisma.user.count({ where: { active: true } });
+}
+
+/** Usuários ativos com pelo menos uma subscription de push ativa. */
+export async function countUsersWithActivePush() {
+  return prisma.user.count({
+    where: {
+      active: true,
+      pushSubscriptions: { some: { active: true } },
+    },
+  });
+}
+
+export async function countActivePushSubscriptions() {
+  return prisma.pushSubscription.count({ where: { active: true } });
 }
 
 export async function upsertEntraUser(input: {
@@ -126,34 +147,6 @@ export async function createManagedUser(input: {
   });
 }
 
-export async function updateManagedUser(
-  id: string,
-  data: {
-    displayName?: string;
-    active?: boolean;
-    roles?: AppRole[];
-    passwordHash?: string;
-  },
-) {
-  return prisma.$transaction(async (tx) => {
-    if (data.roles) {
-      await tx.userRole.deleteMany({ where: { userId: id } });
-      await tx.userRole.createMany({
-        data: data.roles.map((role) => ({ userId: id, role })),
-      });
-    }
-    return tx.user.update({
-      where: { id },
-      data: {
-        ...(data.displayName !== undefined ? { displayName: data.displayName.trim() } : {}),
-        ...(data.active !== undefined ? { active: data.active } : {}),
-        ...(data.passwordHash !== undefined ? { passwordHash: data.passwordHash } : {}),
-      },
-      include: { roles: true },
-    });
-  });
-}
-
 export async function updateOwnProfile(
   id: string,
   data: { displayName?: string; passwordHash?: string },
@@ -168,8 +161,82 @@ export async function updateOwnProfile(
 }
 
 export function normalizeRoles(roles: AppRole[]): AppRole[] {
-  const set = new Set<AppRole>(roles);
-  set.add(Role.COLLABORATOR);
-  if (roles.includes(Role.COMMUNICATOR)) set.add(Role.COMMUNICATOR);
+  const normalized = canonicalizeRoles(roles);
+  const set = new Set<AppRole>(normalized);
+  if (!set.has(Role.METARH) && !set.has(Role.CLIENT) && !set.has(Role.CANDIDATE)) {
+    set.add(Role.COLLABORATOR);
+  }
+  if (set.has(Role.METARH)) {
+    set.add(Role.COLLABORATOR);
+  }
   return [...set];
+}
+
+export type HrProfileFields = {
+  contractStatus?: string | null;
+  contractType?: string | null;
+  economicGroup?: string | null;
+  cnpj?: string | null;
+  healthPlan?: string | null;
+  reimbursementCard?: string | null;
+  clientOrgId?: string | null;
+};
+
+export async function updateManagedUser(
+  id: string,
+  data: {
+    displayName?: string;
+    active?: boolean;
+    roles?: AppRole[];
+    passwordHash?: string;
+  } & HrProfileFields,
+) {
+  return prisma.$transaction(async (tx) => {
+    if (data.roles) {
+      await tx.userRole.deleteMany({ where: { userId: id } });
+      await tx.userRole.createMany({
+        data: normalizeRoles(data.roles).map((role) => ({ userId: id, role })),
+      });
+    }
+    return tx.user.update({
+      where: { id },
+      data: {
+        ...(data.displayName !== undefined ? { displayName: data.displayName.trim() } : {}),
+        ...(data.active !== undefined ? { active: data.active } : {}),
+        ...(data.passwordHash !== undefined ? { passwordHash: data.passwordHash } : {}),
+        ...(data.contractStatus !== undefined ? { contractStatus: data.contractStatus } : {}),
+        ...(data.contractType !== undefined ? { contractType: data.contractType } : {}),
+        ...(data.economicGroup !== undefined ? { economicGroup: data.economicGroup } : {}),
+        ...(data.cnpj !== undefined ? { cnpj: data.cnpj } : {}),
+        ...(data.healthPlan !== undefined ? { healthPlan: data.healthPlan } : {}),
+        ...(data.reimbursementCard !== undefined
+          ? { reimbursementCard: data.reimbursementCard }
+          : {}),
+        ...(data.clientOrgId !== undefined ? { clientOrgId: data.clientOrgId } : {}),
+      },
+      include: { roles: true },
+    });
+  });
+}
+
+export async function countUsersMatchingAudience(filters: {
+  audienceType: string;
+  targets: { targetType: string; targetValue: string }[];
+}) {
+  if (filters.audienceType === "ALL") {
+    return prisma.user.count({ where: { active: true } });
+  }
+  const { buildAudienceWhereFromTargets } = await import("@/domain/audience-matching");
+  const targetWhere = buildAudienceWhereFromTargets(
+    filters.targets as import("@/types/audience").AudienceTargetInput[],
+  );
+  return prisma.user.count({
+    where: {
+      ...targetWhere,
+      // Inativos só entram se o filtro de status pedir; caso contrário, ativos
+      ...(filters.targets.some((t) => t.targetType === "CONTRACT_STATUS")
+        ? {}
+        : { active: true }),
+    },
+  });
 }

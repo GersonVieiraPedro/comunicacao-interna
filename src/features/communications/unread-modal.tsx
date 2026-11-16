@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/modal";
-import { Button } from "@/components/ui/button";
+import { ActionBar, Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { actionAcknowledge } from "@/features/communications/actions";
 import { CommunicationPriority } from "@/types/communication";
@@ -42,7 +42,7 @@ export function UnreadCommunicationModal({
       <p className="mt-3 text-xs text-fg-muted">
         Abrir registra que você viu. “Marcar como lido” confirma ciência.
       </p>
-      <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
+      <ActionBar className="mt-6" align="center">
         <Button variant="secondary" onClick={() => setOpen(false)}>
           Ver depois
         </Button>
@@ -50,7 +50,7 @@ export function UnreadCommunicationModal({
           Abrir
         </Button>
         <Button onClick={onUnderstand}>Marcar como lido</Button>
-      </div>
+      </ActionBar>
     </Modal>
   );
 }

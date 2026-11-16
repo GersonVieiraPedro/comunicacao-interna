@@ -1,23 +1,30 @@
-import { AppRole, isAppRole, type AppRole as Role } from "@/types/roles";
+import {
+  AppRole,
+  canonicalizeRoles,
+  isAppRole,
+  resolveEffectiveRole,
+  type AppRole as Role,
+} from "@/types/roles";
 import { communicatorGroupIds, getEnv } from "@/lib/env";
 import { LOCAL_DEV_PERSONAS, type LocalDevPersona } from "@/lib/dev-auth";
 import { verifyPassword } from "@/lib/password";
 import {
   findUserByEmail,
   findUserByEntraId,
+  findUserById,
   upsertEntraUser,
 } from "@/repositories/user-repository";
 import type { SessionUser } from "@/lib/authz";
 
 function uniqueRoles(roles: Role[]): Role[] {
-  return [...new Set(roles)];
+  return canonicalizeRoles(roles);
 }
 
 export function mapGroupsToRoles(groupIds: string[], communicatorIds: string[]): Role[] {
   const communicators = new Set(communicatorIds);
   const roles: Role[] = [AppRole.COLLABORATOR];
   if (groupIds.some((id) => communicators.has(id))) {
-    roles.push(AppRole.COMMUNICATOR);
+    roles.push(AppRole.METARH);
   }
   return uniqueRoles(roles);
 }
@@ -27,11 +34,35 @@ export function mapEntraGroupsToRoles(groupIds: string[]): Role[] {
   return mapGroupsToRoles(groupIds, communicatorGroupIds(env));
 }
 
+function toSessionUser(stored: {
+  id: string;
+  email: string;
+  displayName: string;
+  active: boolean;
+  contractStatus?: string | null;
+  roles: Array<{ role: string }>;
+}): SessionUser | null {
+  if (!stored.active) return null;
+  const roles = canonicalizeRoles(stored.roles.map((item) => item.role).filter(isAppRole));
+  const effectiveRole = resolveEffectiveRole({
+    roles,
+    contractStatus: stored.contractStatus,
+  });
+  return {
+    id: stored.id,
+    email: stored.email,
+    name: stored.displayName,
+    roles,
+    contractStatus: stored.contractStatus ?? null,
+    effectiveRole,
+  };
+}
+
 export async function syncLocalDevUser(persona: LocalDevPersona): Promise<SessionUser> {
   const profile = LOCAL_DEV_PERSONAS[persona];
   const roles: Role[] =
     persona === "communicator"
-      ? [AppRole.COLLABORATOR, AppRole.COMMUNICATOR]
+      ? [AppRole.COLLABORATOR, AppRole.METARH]
       : [AppRole.COLLABORATOR];
   await upsertEntraUser({
     entraObjectId: profile.entraObjectId,
@@ -40,12 +71,17 @@ export async function syncLocalDevUser(persona: LocalDevPersona): Promise<Sessio
     roles,
   });
   const stored = await findUserByEntraId(profile.entraObjectId);
-  return {
-    id: stored?.id ?? profile.entraObjectId,
-    email: profile.email,
-    name: profile.displayName,
-    roles: stored?.roles.map((item) => item.role).filter(isAppRole) ?? roles,
-  };
+  if (!stored) {
+    return {
+      id: profile.entraObjectId,
+      email: profile.email,
+      name: profile.displayName,
+      roles,
+      contractStatus: "ACTIVE",
+      effectiveRole: resolveEffectiveRole({ roles, contractStatus: "ACTIVE" }),
+    };
+  }
+  return toSessionUser(stored)!;
 }
 
 export async function syncSessionUser(input: {
@@ -57,12 +93,36 @@ export async function syncSessionUser(input: {
   const roles = mapEntraGroupsToRoles(input.groupIds);
   await upsertEntraUser({ ...input, roles });
   const stored = await findUserByEntraId(input.entraObjectId);
-  return {
-    id: stored?.id ?? input.entraObjectId,
-    email: input.email,
-    name: input.displayName,
-    roles: stored?.roles.map((item) => item.role).filter(isAppRole) ?? roles,
-  };
+  if (!stored) {
+    return {
+      id: input.entraObjectId,
+      email: input.email,
+      name: input.displayName,
+      roles,
+      effectiveRole: resolveEffectiveRole({ roles, contractStatus: "ACTIVE" }),
+    };
+  }
+  return toSessionUser(stored)!;
+}
+
+/** Rehidrata sessão JWT incompleta (sem appUser.id). */
+export async function resolveSessionUser(input: {
+  id?: string | null;
+  email?: string | null;
+}): Promise<SessionUser | null> {
+  const email = input.email?.trim().toLowerCase();
+  if (email) {
+    const byEmail = await findUserByEmail(email);
+    if (byEmail) return toSessionUser(byEmail);
+  }
+  const id = input.id?.trim();
+  if (id) {
+    const byId = await findUserById(id);
+    if (byId) return toSessionUser(byId);
+    const byEntra = await findUserByEntraId(id);
+    if (byEntra) return toSessionUser(byEntra);
+  }
+  return null;
 }
 
 /** Login interno e-mail/senha. Retorna null se inválido (mensagem genérica no Auth.js). */
@@ -76,10 +136,5 @@ export async function authenticatePasswordUser(
   if (!stored?.passwordHash || !stored.active) return null;
   const ok = await verifyPassword(password, stored.passwordHash);
   if (!ok) return null;
-  return {
-    id: stored.id,
-    email: stored.email,
-    name: stored.displayName,
-    roles: stored.roles.map((item) => item.role).filter(isAppRole),
-  };
+  return toSessionUser(stored);
 }

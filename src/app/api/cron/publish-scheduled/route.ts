@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { getEnv } from "@/lib/env";
 import { processScheduledJobs } from "@/services/communication-service";
+import { processDeliveryQueue } from "@/services/delivery-queue-service";
 import { jsonError } from "@/lib/http";
 
 function unauthorized() {
@@ -21,8 +22,9 @@ export async function POST(request: Request) {
     const a = Buffer.from(header);
     const b = Buffer.from(expected);
     if (a.length !== b.length || !timingSafeEqual(a, b)) return unauthorized();
-    const result = await processScheduledJobs();
-    return NextResponse.json(result);
+    const scheduled = await processScheduledJobs();
+    const queue = await processDeliveryQueue({ maxJobs: 5, timeBudgetMs: 45_000 });
+    return NextResponse.json({ ...scheduled, queue });
   } catch (error) {
     return jsonError(error);
   }

@@ -14,12 +14,17 @@ export type LifecycleCommunication = {
   scheduledPublishAt: Date | null;
 };
 
-export function isVisibleToCollaborator(item: LifecycleCommunication, now: Date): boolean {
-  if (item.audienceType !== "ALL") return false;
+export function isPublishedAndInWindow(item: LifecycleCommunication, now: Date): boolean {
   if (item.status !== CommunicationStatus.PUBLISHED) return false;
   if (!item.publishedAt || item.publishedAt > now) return false;
   if (item.expiresAt && item.expiresAt <= now) return false;
   return true;
+}
+
+/** Visibilidade temporal; matching de FILTERED fica no serviço/repositório. */
+export function isVisibleToCollaborator(item: LifecycleCommunication, now: Date): boolean {
+  if (item.audienceType !== "ALL" && item.audienceType !== "FILTERED") return false;
+  return isPublishedAndInWindow(item, now);
 }
 
 export function isInCollaboratorHistory(item: Pick<LifecycleCommunication, "status">): boolean {

@@ -3,23 +3,24 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { requireCommunicator } from "@/lib/authz";
 import { jsonError } from "@/lib/http";
-import { sendWebPushForPublication } from "@/services/push-service";
+import { enqueuePublicationFanout, processDeliveryQueue } from "@/services/delivery-queue-service";
 
 const schema = z.object({
   communicationId: z.string().uuid(),
 });
 
 /**
- * Dispara Web Push de um comunicado já publicado.
- * Usado como caminho confiável (Route Handler) — mesmo runtime do teste admin.
+ * Garante job de fan-out na fila e processa um tick (não bloqueia publicação).
+ * Preferir a fila automática; este endpoint serve retry manual / legado do editor.
  */
 export async function POST(request: Request) {
   try {
     const session = await auth();
     requireCommunicator(session?.user);
     const body = schema.parse(await request.json());
-    const result = await sendWebPushForPublication(body.communicationId);
-    return NextResponse.json(result);
+    await enqueuePublicationFanout(body.communicationId);
+    const queue = await processDeliveryQueue({ maxJobs: 2, timeBudgetMs: 12_000 });
+    return NextResponse.json({ ok: true, queued: true, ...queue });
   } catch (error) {
     return jsonError(error);
   }

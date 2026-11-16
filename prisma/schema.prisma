@@ -19,6 +19,16 @@ model User {
   passwordHash  String?
   /// false = sem acesso (login bloqueado)
   active        Boolean  @default(true)
+  /// ACTIVE | INACTIVE | NONE — sem ACTIVE → perfil efetivo CANDIDATE (exceto METARH/CLIENT)
+  contractStatus        String?  @db.NVarChar(32)
+  /// TEMPORARY | THIRD_PARTY
+  contractType          String?  @db.NVarChar(32)
+  economicGroup         String?  @db.NVarChar(120)
+  cnpj                  String?  @db.NVarChar(18)
+  healthPlan            String?  @db.NVarChar(120)
+  reimbursementCard     String?  @db.NVarChar(120)
+  /// Vínculo cliente ↔ alocados (mesmo id lógico / CNPJ raiz)
+  clientOrgId           String?  @db.NVarChar(64)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -31,6 +41,10 @@ model User {
   auditEvents           AuditEvent[]
   notificationDeliveries NotificationDelivery[]
 
+  @@index([contractStatus])
+  @@index([cnpj])
+  @@index([economicGroup])
+  @@index([clientOrgId])
   @@map("users")
   @@schema("comunicacao")
 }
@@ -38,7 +52,7 @@ model User {
 model UserRole {
   id     String @id @default(uuid())
   userId String
-  /// COLLABORATOR | COMMUNICATOR
+  /// METARH | CLIENT | COLLABORATOR | CANDIDATE (legado: COMMUNICATOR → METARH)
   role   String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -73,7 +87,7 @@ model Communication {
   status              String
   /// NORMAL | IMPORTANT | URGENT
   priority            String
-  /// ALL (MVP). Segmentação futura não usa outro valor ainda.
+  /// ALL | FILTERED
   audienceType        String    @default("ALL")
   scheduledPublishAt  DateTime?
   publishedAt         DateTime?
@@ -89,6 +103,7 @@ model Communication {
   notifications Notification[]
   deliveries   NotificationDelivery[]
   auditEvents  AuditEvent[]
+  deliveryJobs DeliveryJob[]
 
   @@index([status, publishedAt])
   @@index([categoryId])
@@ -98,16 +113,17 @@ model Communication {
   @@schema("comunicacao")
 }
 
-/// Reserva para segmentação futura (departamento, unidade, grupo). MVP não popula.
+/// Critérios de audiência FILTERED (AND entre linhas da mesma communication).
 model CommunicationTarget {
   id              String        @id @default(uuid())
   communicationId String
-  /// DEPARTMENT | UNIT | ROLE | GROUP | LOCATION
-  targetType      String
-  targetValue     String
+  /// CONTRACT_STATUS | CONTRACT_TYPE | ECONOMIC_GROUP | CNPJ | HEALTH_PLAN | REIMBURSEMENT_CARD | USER_ID | ROLE
+  targetType      String        @db.NVarChar(40)
+  targetValue     String        @db.NVarChar(200)
   communication   Communication @relation(fields: [communicationId], references: [id], onDelete: Cascade)
 
   @@index([communicationId])
+  @@index([targetType, targetValue])
   @@map("communication_targets")
   @@schema("comunicacao")
 }
@@ -166,10 +182,36 @@ model Notification {
   user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   communication   Communication @relation(fields: [communicationId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, communicationId])
   @@index([userId, createdAt])
   @@index([userId, readAt])
   @@index([communicationId, openedAt])
   @@map("notifications")
+  @@schema("comunicacao")
+}
+
+/// Fila de fan-out (in-app + push). Publicação enfileira; worker processa em lotes.
+model DeliveryJob {
+  id              String        @id @default(uuid())
+  /// FANOUT_PUBLICATION
+  type            String
+  communicationId String
+  /// PENDING | PROCESSING | COMPLETED | FAILED
+  status          String
+  /// JSON: { phase: "in_app"|"push", offset: number }
+  cursor          String?       @db.NVarChar(Max)
+  attempts        Int           @default(0)
+  lastError       String?       @db.NVarChar(500)
+  availableAt     DateTime      @default(now())
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  communication   Communication @relation(fields: [communicationId], references: [id], onDelete: Cascade)
+
+  @@index([status, availableAt])
+  @@index([communicationId, type])
+  @@map("delivery_jobs")
   @@schema("comunicacao")
 }
 
@@ -206,5 +248,36 @@ model AuditEvent {
   @@index([communicationId, createdAt])
   @@index([actorUserId, createdAt])
   @@map("audit_events")
+  @@schema("comunicacao")
+}
+
+/// FAQ editável por METARH (base única).
+model FaqEntry {
+  id        String   @id @default(uuid())
+  question  String   @db.NVarChar(300)
+  answer    String   @db.NVarChar(Max)
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, sortOrder])
+  @@map("faq_entries")
+  @@schema("comunicacao")
+}
+
+/// Links úteis editáveis por METARH (exibidos na página FAQ).
+model UsefulLinkEntry {
+  id          String   @id @default(uuid())
+  label       String   @db.NVarChar(160)
+  href        String   @db.NVarChar(500)
+  description String?  @db.NVarChar(300)
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active, sortOrder])
+  @@map("useful_link_entries")
   @@schema("comunicacao")
 }

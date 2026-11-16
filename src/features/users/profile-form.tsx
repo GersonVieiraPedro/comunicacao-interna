@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { ActionBar, Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { actionUpdateProfile } from "@/features/users/actions";
@@ -73,11 +73,11 @@ export function ProfileForm({
             {error}
           </p>
         ) : null}
-        <div>
+        <ActionBar>
           <Button type="submit" disabled={pending}>
             Salvar perfil
           </Button>
-        </div>
+        </ActionBar>
       </form>
     </Card>
   );

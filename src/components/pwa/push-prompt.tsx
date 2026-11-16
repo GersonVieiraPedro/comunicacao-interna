@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Bell } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { ActionBar, Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { pushSupportMessage, registerPushSubscription } from "@/lib/push-client";
 
@@ -48,7 +48,7 @@ export function PushPrompt() {
         <p className="mt-1 text-sm text-fg-muted">
           Ative as notificações para saber na hora quando um comunicado for publicado.
         </p>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <ActionBar className="mt-3">
           <Button onClick={() => void enable()} disabled={busy}>
             <Icon icon={Bell} className="h-4 w-4" />
             {busy ? "Ativando…" : "Ativar notificações"}
@@ -63,7 +63,7 @@ export function PushPrompt() {
           >
             Agora não
           </Button>
-        </div>
+        </ActionBar>
         {message ? <p className="mt-2 text-sm">{message}</p> : null}
         {error ? (
           <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-danger" role="alert">

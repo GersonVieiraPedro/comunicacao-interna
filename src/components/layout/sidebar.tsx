@@ -5,11 +5,14 @@ import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import {
   Bell,
+  Briefcase,
   CalendarClock,
+  CircleHelp,
   FileText,
   History,
   Home,
   LayoutDashboard,
+  MessageCircle,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
@@ -17,26 +20,109 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { appConfig } from "@/config/app";
-import { hasCommunicatorRole, type AppRole } from "@/types/roles";
+import {
+  AppRole,
+  hasMetarhRole,
+  resolveEffectiveRole,
+  type AppRole as Role,
+} from "@/types/roles";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/cn";
 
 const STORAGE_KEY = "sf-sidebar-collapsed";
 
-export function navItems(roles: AppRole[]): { href: string; label: string; icon: LucideIcon }[] {
-  const items = [
+type NavItem = { href: string; label: string; icon: LucideIcon };
+
+function effectiveProfile(roles: Role[], effectiveRole?: Role): Role {
+  return (
+    effectiveRole ??
+    resolveEffectiveRole({
+      roles,
+      contractStatus: roles.includes(AppRole.CANDIDATE) ? "NONE" : "ACTIVE",
+    })
+  );
+}
+
+/** Ordem de consumo (mobile-first). */
+export function navItems(roles: Role[], effectiveRole?: Role): NavItem[] {
+  const profile = effectiveProfile(roles, effectiveRole);
+
+  if (profile === AppRole.CANDIDATE) {
+    return [
+      { href: "/", label: "Início", icon: Home },
+      { href: "/vagas", label: "Vagas", icon: Briefcase },
+      { href: "/configuracoes", label: "Mais", icon: Settings },
+    ];
+  }
+
+  if (profile === AppRole.CLIENT) {
+    return [
+      { href: "/", label: "Início", icon: Home },
+      { href: "/historico", label: "Histórico", icon: History },
+      { href: "/contato-cs", label: "CS", icon: MessageCircle },
+      { href: "/pesquisas", label: "Pesquisas", icon: CircleHelp },
+      { href: "/configuracoes", label: "Mais", icon: Settings },
+    ];
+  }
+
+  // Colaborador / METARH (consumo)
+  const items: NavItem[] = [
     { href: "/", label: "Início", icon: Home },
-    { href: "/historico", label: "Histórico", icon: History },
     { href: "/notificacoes", label: "Alertas", icon: Bell },
+    { href: "/historico", label: "Histórico", icon: History },
+    { href: "/faq", label: "FAQ", icon: CircleHelp },
     { href: "/configuracoes", label: "Mais", icon: Settings },
   ];
-  if (hasCommunicatorRole(roles)) {
-    items.push({ href: "/admin", label: "Painel", icon: LayoutDashboard });
-    items.push({ href: "/admin/comunicados", label: "Comunicados", icon: FileText });
-    items.push({ href: "/admin/agenda", label: "Agenda", icon: CalendarClock });
-    items.push({ href: "/admin/usuarios", label: "Usuários", icon: Users });
+
+  if (hasMetarhRole(roles) || profile === AppRole.METARH) {
+    items.push(
+      { href: "/admin", label: "Painel", icon: LayoutDashboard },
+      { href: "/admin/comunicados", label: "Comunicados", icon: FileText },
+      { href: "/admin/agenda", label: "Agenda", icon: CalendarClock },
+      { href: "/admin/usuarios", label: "Usuários", icon: Users },
+    );
   }
+
   return items;
+}
+
+/** Bottom nav PWA: no máximo 4 atalhos. Alertas ficam só no header (sino). */
+export function mobileNavItems(roles: Role[], effectiveRole?: Role): NavItem[] {
+  const profile = effectiveProfile(roles, effectiveRole);
+
+  if (profile === AppRole.CANDIDATE) {
+    return [
+      { href: "/", label: "Início", icon: Home },
+      { href: "/vagas", label: "Vagas", icon: Briefcase },
+      { href: "/faq", label: "FAQ", icon: CircleHelp },
+      { href: "/configuracoes", label: "Mais", icon: Settings },
+    ];
+  }
+
+  if (profile === AppRole.CLIENT) {
+    return [
+      { href: "/", label: "Início", icon: Home },
+      { href: "/contato-cs", label: "CS", icon: MessageCircle },
+      { href: "/faq", label: "FAQ", icon: CircleHelp },
+      { href: "/configuracoes", label: "Mais", icon: Settings },
+    ];
+  }
+
+  if (hasMetarhRole(roles) || profile === AppRole.METARH) {
+    return [
+      { href: "/", label: "Início", icon: Home },
+      { href: "/admin/comunicados", label: "Comunicados", icon: FileText },
+      { href: "/faq", label: "FAQ", icon: CircleHelp },
+      { href: "/configuracoes", label: "Mais", icon: Settings },
+    ];
+  }
+
+  return [
+    { href: "/", label: "Início", icon: Home },
+    { href: "/historico", label: "Histórico", icon: History },
+    { href: "/faq", label: "FAQ", icon: CircleHelp },
+    { href: "/configuracoes", label: "Mais", icon: Settings },
+  ];
 }
 
 function isNavActive(pathname: string, href: string) {
@@ -64,11 +150,16 @@ function SidebarLabel({ collapsed, children }: { collapsed: boolean; children: R
   );
 }
 
-export function Sidebar({ roles }: { roles: AppRole[] }) {
+export function Sidebar({
+  roles,
+  effectiveRole,
+}: {
+  roles: Role[];
+  effectiveRole?: Role;
+}) {
   const pathname = usePathname();
-  const items = navItems(roles);
+  const items = navItems(roles, effectiveRole);
   const [collapsed, setCollapsed] = useState(false);
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     try {
@@ -76,7 +167,6 @@ export function Sidebar({ roles }: { roles: AppRole[] }) {
     } catch {
       // ignore
     }
-    setReady(true);
   }, []);
 
   function toggleCollapsed() {
@@ -91,11 +181,39 @@ export function Sidebar({ roles }: { roles: AppRole[] }) {
     });
   }
 
+  const consumerCount =
+    hasMetarhRole(roles) || effectiveProfile(roles, effectiveRole) === AppRole.METARH
+      ? items.length - 4
+      : items.length;
+  const consumerItems = items.slice(0, consumerCount);
+  const adminItems = items.slice(consumerCount);
+
   const itemClass = (active?: boolean) =>
     cn(
       "flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
       active ? "bg-white text-accent shadow-sm" : "text-white/90 hover:bg-white/10",
     );
+
+  function renderItem(item: NavItem) {
+    const active = isNavActive(pathname, item.href);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        title={item.label}
+        aria-label={item.label}
+        className={itemClass(active)}
+      >
+        <Icon icon={item.icon} className={cn("h-5 w-5 shrink-0", active ? "text-accent" : "text-white/90")} />
+        <SidebarLabel collapsed={collapsed}>
+          <span className="inline-flex w-[11rem] items-center gap-2">
+            <span className="truncate">{item.label}</span>
+            {active ? <span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-spark" aria-hidden /> : null}
+          </span>
+        </SidebarLabel>
+      </Link>
+    );
+  }
 
   return (
     <>
@@ -103,7 +221,6 @@ export function Sidebar({ roles }: { roles: AppRole[] }) {
         className={cn(
           "fixed inset-y-0 left-0 z-40 hidden overflow-hidden bg-accent text-white transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:flex md:flex-col",
           collapsed ? "w-[var(--sf-sidebar-collapsed-w)]" : "w-[var(--sf-sidebar-w)]",
-          !ready && "opacity-0",
         )}
         aria-label="Menu lateral"
       >
@@ -139,26 +256,23 @@ export function Sidebar({ roles }: { roles: AppRole[] }) {
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden p-3" aria-label="Principal">
-          {items.map((item) => {
-            const active = isNavActive(pathname, item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={item.label}
-                aria-label={item.label}
-                className={itemClass(active)}
+          {consumerItems.map(renderItem)}
+          {adminItems.length > 0 ? (
+            <>
+              <div
+                className={cn(
+                  "my-2 overflow-hidden px-3 transition-[max-height,opacity]",
+                  collapsed ? "max-h-0 opacity-0" : "max-h-8 opacity-100",
+                )}
               >
-                <Icon icon={item.icon} className={cn("h-5 w-5 shrink-0", active ? "text-accent" : "text-white/90")} />
-                <SidebarLabel collapsed={collapsed}>
-                  <span className="inline-flex w-[11rem] items-center gap-2">
-                    <span className="truncate">{item.label}</span>
-                    {active ? <span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-spark" aria-hidden /> : null}
-                  </span>
-                </SidebarLabel>
-              </Link>
-            );
-          })}
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/50">
+                  Administração
+                </p>
+              </div>
+              {collapsed ? <div className="my-1 border-t border-white/10" aria-hidden /> : null}
+              {adminItems.map(renderItem)}
+            </>
+          ) : null}
         </nav>
 
         <div className="mt-auto border-t border-white/10 p-3">

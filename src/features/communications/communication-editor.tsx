@@ -6,7 +6,7 @@ import { CalendarClock, FileText, ImagePlus, Loader2, Megaphone, Send } from "lu
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
+import { ActionBar, Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
@@ -33,17 +33,17 @@ const PRIORITIES = [
   {
     value: CommunicationPriority.NORMAL,
     label: "Normal",
-    hint: "Aparece no feed",
+    hint: "Feed + alerta in-app (sem push no celular)",
   },
   {
     value: CommunicationPriority.IMPORTANT,
     label: "Importante",
-    hint: "Destaque + alerta",
+    hint: "In-app + push no dispositivo",
   },
   {
     value: CommunicationPriority.URGENT,
     label: "Urgente",
-    hint: "Popup e push forte",
+    hint: "Popup, in-app + push com mais destaque",
   },
 ] as const;
 
@@ -93,6 +93,8 @@ export function CommunicationEditor({
     coverPath: string | null;
     scheduledPublishAt?: string | Date | null;
     expiresAt?: string | Date | null;
+    audienceType?: string;
+    targets?: Array<{ targetType: string; targetValue: string }>;
   };
 }) {
   const router = useRouter();
@@ -100,6 +102,11 @@ export function CommunicationEditor({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"draft" | "schedule" | "publish" | null>(null);
   const [priority, setPriority] = useState(initial?.priority ?? CommunicationPriority.NORMAL);
+  const [audienceType, setAudienceType] = useState(initial?.audienceType ?? "ALL");
+  const [audiencePreview, setAudiencePreview] = useState<number | null>(null);
+
+  const targetValue = (type: string) =>
+    initial?.targets?.find((target) => target.targetType === type)?.targetValue ?? "";
   const [coverPath, setCoverPath] = useState(initial?.coverPath ?? "");
   const [uploadingCover, setUploadingCover] = useState(false);
   const [coverUploadInfo, setCoverUploadInfo] = useState<string | null>(null);
@@ -135,16 +142,13 @@ export function CommunicationEditor({
         setError(result.message ?? "Não foi possível salvar.");
         return;
       }
+      // Fan-out (in-app + push) já enfileirado no publish; kick best-effort sem bloquear a UI.
       if (options?.dispatchPush && result.id) {
-        try {
-          await fetch("/api/push/dispatch", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ communicationId: result.id }),
-          });
-        } catch {
-          // best-effort
-        }
+        void fetch("/api/push/dispatch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ communicationId: result.id }),
+        }).catch(() => undefined);
       }
       if (kind === "schedule") {
         router.push("/admin/agenda");
@@ -259,7 +263,7 @@ export function CommunicationEditor({
               Sem capa
             </div>
           )}
-          <div className="flex flex-wrap gap-2">
+          <ActionBar align="start">
             <Button
               type="button"
               variant="secondary"
@@ -281,7 +285,7 @@ export function CommunicationEditor({
                 Remover capa
               </Button>
             ) : null}
-          </div>
+          </ActionBar>
           <MediaLimitsHint variant="cover" />
           {coverUploadInfo ? <p className="text-xs text-fg-muted">{coverUploadInfo}</p> : null}
           <input
@@ -396,6 +400,120 @@ export function CommunicationEditor({
       </Card>
 
       <Card className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-base font-semibold text-fg">Quem recebe</h2>
+          <p className="text-sm text-fg-muted">
+            Todos os ativos ou filtros combinados (AND): contrato, CNPJ, planos e pessoa.
+          </p>
+        </div>
+        <input type="hidden" name="audienceType" value={audienceType} />
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium text-fg">Audiência</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {(
+              [
+                { value: "ALL", label: "Todos os ativos", hint: "Sem segmentação" },
+                { value: "FILTERED", label: "Filtrado", hint: "Critérios abaixo" },
+              ] as const
+            ).map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => {
+                  setAudienceType(item.value);
+                  setAudiencePreview(null);
+                }}
+                className={cn(
+                  "rounded-xl border px-3 py-3 text-left transition",
+                  audienceType === item.value
+                    ? "border-accent bg-accent-subtle/60 shadow-sm"
+                    : "border-border bg-surface hover:border-accent/30",
+                )}
+              >
+                <span className="block text-sm font-semibold text-fg">{item.label}</span>
+                <span className="mt-0.5 block text-xs text-fg-muted">{item.hint}</span>
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        {audienceType === "FILTERED" ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-sm">
+              <span>Ativo / Inativo</span>
+              <select
+                name="filterContractStatus"
+                defaultValue={targetValue("CONTRACT_STATUS")}
+                className="min-h-11 rounded-xl border border-border bg-surface px-3"
+              >
+                <option value="">—</option>
+                <option value="ACTIVE">Ativo</option>
+                <option value="INACTIVE">Inativo</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span>Tipo de contrato</span>
+              <select
+                name="filterContractType"
+                defaultValue={targetValue("CONTRACT_TYPE")}
+                className="min-h-11 rounded-xl border border-border bg-surface px-3"
+              >
+                <option value="">—</option>
+                <option value="TEMPORARY">Temporário</option>
+                <option value="THIRD_PARTY">Terceiro</option>
+              </select>
+            </label>
+            <Input
+              name="filterEconomicGroup"
+              label="Grupo econômico"
+              defaultValue={targetValue("ECONOMIC_GROUP")}
+            />
+            <Input name="filterCnpj" label="CNPJ" defaultValue={targetValue("CNPJ")} />
+            <Input
+              name="filterHealthPlan"
+              label="Plano de saúde"
+              defaultValue={targetValue("HEALTH_PLAN")}
+            />
+            <Input
+              name="filterReimbursementCard"
+              label="Cartão de reembolso"
+              defaultValue={targetValue("REIMBURSEMENT_CARD")}
+            />
+            <Input
+              name="filterUserId"
+              label="ID do usuário (pessoa)"
+              defaultValue={targetValue("USER_ID")}
+              className="sm:col-span-2"
+            />
+            <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={async (event) => {
+                  const form = event.currentTarget.form;
+                  if (!form) return;
+                  const formData = new FormData(form);
+                  formData.set("audienceType", "FILTERED");
+                  const res = await fetch("/api/admin/audience-preview", {
+                    method: "POST",
+                    body: formData,
+                  });
+                  const data = (await res.json().catch(() => ({}))) as { count?: number };
+                  setAudiencePreview(typeof data.count === "number" ? data.count : null);
+                }}
+              >
+                Pré-visualizar destinatários
+              </Button>
+              {audiencePreview != null ? (
+                <p className="text-sm text-fg-muted">
+                  <strong className="text-fg">{audiencePreview}</strong> pessoas elegíveis
+                </p>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </Card>
+
+      <Card className="flex flex-col gap-4">
         <div className="flex items-start gap-3">
           <span className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-muted text-fg">
             <Icon icon={CalendarClock} className="h-5 w-5" />
@@ -434,7 +552,7 @@ export function CommunicationEditor({
         </label>
       </Card>
 
-      <div className="sticky bottom-16 z-10 -mx-1 flex flex-col gap-2 rounded-2xl border border-border/80 bg-surface/95 p-3 shadow-lg backdrop-blur md:bottom-3 md:flex-row md:items-center">
+      <ActionBar className="sticky bottom-16 z-10 -mx-1 rounded-2xl border border-border/80 bg-surface/95 p-3 shadow-lg backdrop-blur md:bottom-3">
         <Button
           type="button"
           variant="secondary"
@@ -490,7 +608,7 @@ export function CommunicationEditor({
             Cancelar comunicado
           </Button>
         ) : null}
-      </div>
+      </ActionBar>
     </form>
   );
 }

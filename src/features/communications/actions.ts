@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import {
@@ -11,6 +12,7 @@ import {
   schedulePublication,
   updateDraft,
 } from "@/services/communication-service";
+import { processDeliveryQueue } from "@/services/delivery-queue-service";
 import { markNotificationRead } from "@/repositories/notification-repository";
 import { requireUser } from "@/lib/authz";
 import { parseDateTimeLocalInput } from "@/lib/datetime";
@@ -30,9 +32,29 @@ function parseOptionalDate(value: string): Date | null {
   }
 }
 
+function targetsFromForm(formData: FormData) {
+  const audienceType = formString(formData, "audienceType") || "ALL";
+  if (audienceType !== "FILTERED") return { audienceType: "ALL" as const, targets: [] };
+
+  const pairs: Array<{ targetType: string; targetValue: string }> = [];
+  const add = (targetType: string, key: string) => {
+    const targetValue = formString(formData, key).trim();
+    if (targetValue) pairs.push({ targetType, targetValue });
+  };
+  add("CONTRACT_STATUS", "filterContractStatus");
+  add("CONTRACT_TYPE", "filterContractType");
+  add("ECONOMIC_GROUP", "filterEconomicGroup");
+  add("CNPJ", "filterCnpj");
+  add("HEALTH_PLAN", "filterHealthPlan");
+  add("REIMBURSEMENT_CARD", "filterReimbursementCard");
+  add("USER_ID", "filterUserId");
+  return { audienceType: "FILTERED" as const, targets: pairs };
+}
+
 function payloadFromForm(formData: FormData) {
   const expires = formString(formData, "expiresAt");
   const expiresAt = parseOptionalDate(expires);
+  const audience = targetsFromForm(formData);
   return {
     title: formString(formData, "title"),
     subtitle: formString(formData, "subtitle") || null,
@@ -42,6 +64,7 @@ function payloadFromForm(formData: FormData) {
     priority: formString(formData, "priority"),
     coverPath: formString(formData, "coverPath") || null,
     expiresAt,
+    ...audience,
   };
 }
 
@@ -72,6 +95,10 @@ export async function actionPublish(formData: FormData) {
       await updateDraft(session?.user, id, payloadFromForm(formData)).catch(() => undefined);
     }
     await publishNow(session?.user, communicationId);
+    // Continua o fan-out depois da resposta (não prende o “publicado”).
+    after(() => {
+      void processDeliveryQueue({ maxJobs: 3, timeBudgetMs: 20_000 });
+    });
     revalidatePath("/");
     revalidatePath("/admin");
     return { ok: true as const, id: communicationId };

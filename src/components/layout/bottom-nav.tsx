@@ -4,12 +4,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/cn";
-import { navItems } from "@/components/layout/sidebar";
+import { mobileNavItems } from "@/components/layout/sidebar";
 import type { AppRole } from "@/types/roles";
 
-export function BottomNav({ roles }: { roles: AppRole[] }) {
+export function BottomNav({
+  roles,
+  effectiveRole,
+}: {
+  roles: AppRole[];
+  effectiveRole?: AppRole;
+}) {
   const pathname = usePathname();
-  const items = navItems(roles).slice(0, 4);
+  const items = mobileNavItems(roles, effectiveRole);
 
   return (
     <nav

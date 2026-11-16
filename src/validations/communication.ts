@@ -1,5 +1,20 @@
 import { z } from "zod";
 import { CommunicationPriority, CommunicationStatus } from "@/types/communication";
+import { AudienceTargetType, AudienceType } from "@/types/audience";
+
+export const audienceTargetSchema = z.object({
+  targetType: z.enum([
+    AudienceTargetType.CONTRACT_STATUS,
+    AudienceTargetType.CONTRACT_TYPE,
+    AudienceTargetType.ECONOMIC_GROUP,
+    AudienceTargetType.CNPJ,
+    AudienceTargetType.HEALTH_PLAN,
+    AudienceTargetType.REIMBURSEMENT_CARD,
+    AudienceTargetType.USER_ID,
+    AudienceTargetType.ROLE,
+  ]),
+  targetValue: z.string().trim().min(1).max(200),
+});
 
 export const communicationInputSchema = z.object({
   title: z.string().trim().min(3).max(200),
@@ -16,6 +31,8 @@ export const communicationInputSchema = z.object({
   // Disco local (~path curto), Blob URL ou data URL (piloto na Vercel sem Blob).
   coverPath: z.string().max(5_000_000).optional().nullable(),
   scheduledPublishAt: z.coerce.date().optional().nullable(),
+  audienceType: z.enum([AudienceType.ALL, AudienceType.FILTERED]).default(AudienceType.ALL),
+  targets: z.array(audienceTargetSchema).default([]),
 });
 
 export const historyQuerySchema = z.object({

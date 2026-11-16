@@ -1,8 +1,14 @@
 import type { SessionUser } from "@/lib/authz";
-import { requireCommunicator, requireUser } from "@/lib/authz";
+import { requireMetarh, requireUser } from "@/lib/authz";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { credentialsSubject, hashPassword, verifyPassword } from "@/lib/password";
-import { AppRole, isAppRole, type AppRole as Role } from "@/types/roles";
+import {
+  AppRole,
+  canonicalizeRoles,
+  isAppRole,
+  resolveEffectiveRole,
+  type AppRole as Role,
+} from "@/types/roles";
 import {
   createManagedUser,
   findUserByEmail,
@@ -22,13 +28,20 @@ function toSessionShape(user: {
   id: string;
   email: string;
   displayName: string;
+  contractStatus?: string | null;
   roles: Array<{ role: string }>;
 }): SessionUser {
+  const roles = canonicalizeRoles(user.roles.map((item) => item.role).filter(isAppRole));
   return {
     id: user.id,
     email: user.email,
     name: user.displayName,
-    roles: user.roles.map((item) => item.role).filter(isAppRole),
+    roles,
+    contractStatus: user.contractStatus ?? null,
+    effectiveRole: resolveEffectiveRole({
+      roles,
+      contractStatus: user.contractStatus,
+    }),
   };
 }
 
@@ -39,12 +52,12 @@ function parseRoles(raw: unknown): Role[] {
 }
 
 export async function listManagedUsers(user: SessionUser | undefined, q?: string) {
-  requireCommunicator(user);
+  requireMetarh(user);
   return listUsers({ q });
 }
 
 export async function createUser(user: SessionUser | undefined, raw: unknown) {
-  requireCommunicator(user);
+  requireMetarh(user);
   const parsed = createUserSchema.parse({
     ...(raw as object),
     roles: parseRoles((raw as { roles?: unknown })?.roles),
@@ -60,11 +73,21 @@ export async function createUser(user: SessionUser | undefined, raw: unknown) {
     roles: normalizeRoles(parsed.roles),
     subject: credentialsSubject(email),
   });
-  return toSessionShape(created);
+  await updateManagedUser(created.id, {
+    contractStatus: parsed.contractStatus ?? "ACTIVE",
+    contractType: parsed.contractType ?? null,
+    economicGroup: parsed.economicGroup ?? null,
+    cnpj: parsed.cnpj ?? null,
+    healthPlan: parsed.healthPlan ?? null,
+    reimbursementCard: parsed.reimbursementCard ?? null,
+    clientOrgId: parsed.clientOrgId ?? null,
+  });
+  const refreshed = await findUserById(created.id);
+  return toSessionShape(refreshed ?? created);
 }
 
 export async function updateUser(user: SessionUser | undefined, raw: unknown) {
-  const actor = requireCommunicator(user);
+  const actor = requireMetarh(user);
   const parsed = updateUserSchema.parse({
     ...(raw as object),
     roles: (raw as { roles?: unknown }).roles
@@ -82,6 +105,13 @@ export async function updateUser(user: SessionUser | undefined, raw: unknown) {
     active: parsed.active,
     roles: parsed.roles ? normalizeRoles(parsed.roles) : undefined,
     passwordHash,
+    contractStatus: parsed.contractStatus,
+    contractType: parsed.contractType,
+    economicGroup: parsed.economicGroup,
+    cnpj: parsed.cnpj,
+    healthPlan: parsed.healthPlan,
+    reimbursementCard: parsed.reimbursementCard,
+    clientOrgId: parsed.clientOrgId,
   });
   return toSessionShape(updated);
 }
@@ -122,6 +152,14 @@ export async function getProfile(user: SessionUser | undefined) {
     displayName: stored.displayName,
     active: stored.active,
     hasPassword: Boolean(stored.passwordHash),
-    roles: stored.roles.map((item) => item.role).filter(isAppRole),
+    roles: canonicalizeRoles(stored.roles.map((item) => item.role).filter(isAppRole)),
+    contractStatus: stored.contractStatus,
+    contractType: stored.contractType,
+    economicGroup: stored.economicGroup,
+    cnpj: stored.cnpj,
+    effectiveRole: resolveEffectiveRole({
+      roles: canonicalizeRoles(stored.roles.map((item) => item.role).filter(isAppRole)),
+      contractStatus: stored.contractStatus,
+    }),
   };
 }

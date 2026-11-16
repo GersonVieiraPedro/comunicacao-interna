@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { ActionBar, Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import {
   actionToggleUserActive,
   actionUpdateUser,
 } from "@/features/users/actions";
-import { AppRole } from "@/types/roles";
+import { AppRole, hasMetarhRole, resolveEffectiveRole } from "@/types/roles";
 
 type ManagedUser = {
   id: string;
@@ -19,9 +19,87 @@ type ManagedUser = {
   displayName: string;
   active: boolean;
   roles: string[];
+  pushDevices: number;
+  contractStatus?: string | null;
+  contractType?: string | null;
+  economicGroup?: string | null;
+  cnpj?: string | null;
+  healthPlan?: string | null;
+  reimbursementCard?: string | null;
+  clientOrgId?: string | null;
 };
 
-export function UserAdminPanel({ users }: { users: ManagedUser[] }) {
+function profileLabel(user: ManagedUser) {
+  const role = resolveEffectiveRole({
+    roles: user.roles as never,
+    contractStatus: user.contractStatus,
+  });
+  if (role === AppRole.METARH || hasMetarhRole(user.roles as never)) return "METARH";
+  if (role === AppRole.CLIENT) return "Cliente";
+  if (role === AppRole.CANDIDATE) return "Candidato";
+  return "Colaborador";
+}
+
+function defaultProfileRole(user?: ManagedUser) {
+  if (!user) return AppRole.COLLABORATOR;
+  if (hasMetarhRole(user.roles as never)) return AppRole.METARH;
+  if (user.roles.includes(AppRole.CLIENT)) return AppRole.CLIENT;
+  if (user.roles.includes(AppRole.CANDIDATE)) return AppRole.CANDIDATE;
+  return AppRole.COLLABORATOR;
+}
+
+function HrFields({ user }: { user?: ManagedUser }) {
+  return (
+    <>
+      <label className="flex flex-col gap-1 text-sm text-fg">
+        <span>Status do contrato</span>
+        <select
+          name="contractStatus"
+          defaultValue={user?.contractStatus ?? "ACTIVE"}
+          className="min-h-11 rounded-xl border border-border bg-surface px-3"
+        >
+          <option value="ACTIVE">Ativo</option>
+          <option value="INACTIVE">Inativo</option>
+          <option value="NONE">Sem contrato</option>
+        </select>
+      </label>
+      <label className="flex flex-col gap-1 text-sm text-fg">
+        <span>Tipo de contrato</span>
+        <select
+          name="contractType"
+          defaultValue={user?.contractType ?? ""}
+          className="min-h-11 rounded-xl border border-border bg-surface px-3"
+        >
+          <option value="">—</option>
+          <option value="TEMPORARY">Temporário</option>
+          <option value="THIRD_PARTY">Terceiro</option>
+        </select>
+      </label>
+      <Input name="economicGroup" label="Grupo econômico" defaultValue={user?.economicGroup ?? ""} />
+      <Input name="cnpj" label="CNPJ" defaultValue={user?.cnpj ?? ""} />
+      <Input name="healthPlan" label="Plano de saúde" defaultValue={user?.healthPlan ?? ""} />
+      <Input
+        name="reimbursementCard"
+        label="Cartão de reembolso"
+        defaultValue={user?.reimbursementCard ?? ""}
+      />
+      <Input
+        name="clientOrgId"
+        label="ID organização cliente"
+        defaultValue={user?.clientOrgId ?? ""}
+        className="sm:col-span-2"
+      />
+    </>
+  );
+}
+
+export function UserAdminPanel({
+  users,
+  pushEnabledCount = 0,
+}: {
+  users: ManagedUser[];
+  pushEnabledCount?: number;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -46,10 +124,17 @@ export function UserAdminPanel({ users }: { users: ManagedUser[] }) {
   return (
     <div className="flex flex-col gap-6">
       <Card>
-        <h2 className="text-sm font-semibold text-fg">Novo usuário</h2>
-        <p className="mt-1 text-sm text-fg-muted">
-          Cadastro com e-mail e senha. O colaborador acessa imediatamente após o login.
+        <p className="text-sm text-fg-muted">Push Web ativo</p>
+        <p className="mt-1 text-2xl font-semibold tabular-nums">
+          {pushEnabledCount}
+          <span className="ml-2 text-sm font-medium text-fg-muted">
+            de {users.filter((user) => user.active).length} ativos nesta lista
+          </span>
         </p>
+      </Card>
+
+      <Card>
+        <h2 className="text-sm font-semibold text-fg">Novo usuário</h2>
         <form
           className="mt-4 grid gap-3 sm:grid-cols-2"
           onSubmit={(event) => {
@@ -69,14 +154,26 @@ export function UserAdminPanel({ users }: { users: ManagedUser[] }) {
             minLength={8}
             autoComplete="new-password"
           />
-          <label className="flex min-h-11 items-end gap-2 pb-2 text-sm text-fg">
-            <input type="checkbox" name="roleCommunicator" className="h-4 w-4 accent-[var(--sf-accent)]" />
-            Também é comunicador (admin)
+          <label className="flex flex-col gap-1 text-sm text-fg">
+            <span>Perfil</span>
+            <select
+              name="profileRole"
+              defaultValue={AppRole.COLLABORATOR}
+              className="min-h-11 rounded-xl border border-border bg-surface px-3"
+            >
+              <option value={AppRole.METARH}>METARH</option>
+              <option value={AppRole.CLIENT}>Cliente</option>
+              <option value={AppRole.COLLABORATOR}>Colaborador</option>
+              <option value={AppRole.CANDIDATE}>Candidato</option>
+            </select>
           </label>
+          <HrFields />
           <div className="sm:col-span-2">
-            <Button type="submit" disabled={pending}>
-              Cadastrar
-            </Button>
+            <ActionBar>
+              <Button type="submit" disabled={pending}>
+                Cadastrar
+              </Button>
+            </ActionBar>
           </div>
         </form>
       </Card>
@@ -90,7 +187,6 @@ export function UserAdminPanel({ users }: { users: ManagedUser[] }) {
 
       <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
         {users.map((user) => {
-          const isCommunicator = user.roles.includes(AppRole.COMMUNICATOR);
           const editing = editingId === user.id;
           return (
             <li key={user.id} className="px-4 py-4">
@@ -101,13 +197,18 @@ export function UserAdminPanel({ users }: { users: ManagedUser[] }) {
                     <Badge tone={user.active ? "success" : "warning"}>
                       {user.active ? "Ativo" : "Inativo"}
                     </Badge>
-                    <Badge tone={isCommunicator ? "info" : "neutral"}>
-                      {isCommunicator ? "Comunicador" : "Colaborador"}
+                    <Badge tone="info">{profileLabel(user)}</Badge>
+                    <Badge tone={user.pushDevices > 0 ? "success" : "neutral"}>
+                      {user.pushDevices > 0 ? `Push · ${user.pushDevices} disp.` : "Sem push"}
                     </Badge>
                   </div>
                   <p className="mt-1 truncate text-sm text-fg-muted">{user.email}</p>
+                  <p className="mt-1 text-xs text-fg-muted">
+                    {[user.contractType, user.economicGroup, user.cnpj].filter(Boolean).join(" · ") ||
+                      "Sem atributos de contrato"}
+                  </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <ActionBar className="w-full sm:w-auto" align="end">
                   <Button
                     variant="secondary"
                     onClick={() => setEditingId(editing ? null : user.id)}
@@ -127,7 +228,7 @@ export function UserAdminPanel({ users }: { users: ManagedUser[] }) {
                   >
                     {user.active ? "Desativar" : "Reativar"}
                   </Button>
-                </div>
+                </ActionBar>
               </div>
 
               {editing ? (
@@ -141,12 +242,7 @@ export function UserAdminPanel({ users }: { users: ManagedUser[] }) {
                     run(() => actionUpdateUser(formData), "Usuário atualizado.");
                   }}
                 >
-                  <Input
-                    name="displayName"
-                    label="Nome"
-                    defaultValue={user.displayName}
-                    required
-                  />
+                  <Input name="displayName" label="Nome" defaultValue={user.displayName} required />
                   <Input
                     name="password"
                     label="Nova senha (opcional)"
@@ -155,19 +251,26 @@ export function UserAdminPanel({ users }: { users: ManagedUser[] }) {
                     autoComplete="new-password"
                     placeholder="Deixe em branco para manter"
                   />
-                  <label className="flex min-h-11 items-end gap-2 pb-2 text-sm text-fg sm:col-span-2">
-                    <input
-                      type="checkbox"
-                      name="roleCommunicator"
-                      defaultChecked={isCommunicator}
-                      className="h-4 w-4 accent-[var(--sf-accent)]"
-                    />
-                    Papel de comunicador
+                  <label className="flex flex-col gap-1 text-sm text-fg sm:col-span-2">
+                    <span>Perfil</span>
+                    <select
+                      name="profileRole"
+                      defaultValue={defaultProfileRole(user)}
+                      className="min-h-11 rounded-xl border border-border bg-surface px-3"
+                    >
+                      <option value={AppRole.METARH}>METARH</option>
+                      <option value={AppRole.CLIENT}>Cliente</option>
+                      <option value={AppRole.COLLABORATOR}>Colaborador</option>
+                      <option value={AppRole.CANDIDATE}>Candidato</option>
+                    </select>
                   </label>
+                  <HrFields user={user} />
                   <div className="sm:col-span-2">
-                    <Button type="submit" disabled={pending}>
-                      Salvar alterações
-                    </Button>
+                    <ActionBar>
+                      <Button type="submit" disabled={pending}>
+                        Salvar alterações
+                      </Button>
+                    </ActionBar>
                   </div>
                 </form>
               ) : null}

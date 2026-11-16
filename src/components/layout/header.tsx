@@ -16,7 +16,7 @@ export function Header({ user, unreadNotifications = 0 }: { user: SessionUser; u
         <img src="/logo-metarh-roxo.png" alt="" className="h-8 w-auto" />
         <div>
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-accent/70">METARH</p>
-          <p className="truncate text-[10px] font-semibold text-fg">Central de comunicação</p>
+          <p className="truncate text-[10px] font-semibold text-fg">{appConfig.name}</p>
         </div>
 
       </Link>

@@ -31,7 +31,13 @@ describe("authz", () => {
     expect(() => requireUser(undefined)).toThrow(UnauthorizedError);
   });
 
+  it("exige id na sessão", () => {
+    expect(() =>
+      requireUser({ id: "", email: "a@b.c", name: "A", roles: [AppRole.COLLABORATOR] }),
+    ).toThrow(UnauthorizedError);
+  });
+
   it("bloqueia papel insuficiente", () => {
-    expect(() => requireRole(user, [AppRole.COMMUNICATOR])).toThrow(ForbiddenError);
+    expect(() => requireRole(user, [AppRole.METARH])).toThrow(ForbiddenError);
   });
 });

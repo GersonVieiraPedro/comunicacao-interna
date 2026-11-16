@@ -39,7 +39,23 @@ export async function deactivateByEndpoint(endpoint: string) {
 }
 
 export async function listActiveSubscriptions() {
-  return prisma.pushSubscription.findMany({ where: { active: true } });
+  return prisma.pushSubscription.findMany({
+    where: { active: true },
+    orderBy: { id: "asc" },
+  });
+}
+
+export async function listActiveSubscriptionsPage(skip: number, take: number) {
+  return prisma.pushSubscription.findMany({
+    where: { active: true },
+    orderBy: { id: "asc" },
+    skip,
+    take,
+  });
+}
+
+export async function countActiveSubscriptions() {
+  return prisma.pushSubscription.count({ where: { active: true } });
 }
 
 export async function listActiveSubscriptionsForUser(userId: string) {

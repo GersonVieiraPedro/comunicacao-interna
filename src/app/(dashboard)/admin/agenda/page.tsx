@@ -5,6 +5,7 @@ import { getAdminAgenda } from "@/services/communication-service";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ActionBar, ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
 import { formatBrazilDateTime } from "@/lib/datetime";
@@ -45,14 +46,7 @@ export default async function AdminAgendaPage() {
       <PageHeader
         title="Agenda de publicações"
         description="Comunicados agendados, prontos para revisão e ajuste antes do disparo."
-        actions={
-          <Link
-            href="/admin/comunicados/novo"
-            className="inline-flex min-h-11 items-center justify-center rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover"
-          >
-            Novo comunicado
-          </Link>
-        }
+        actions={<ButtonLink href="/admin/comunicados/novo">Novo comunicado</ButtonLink>}
       />
 
       {items.length === 0 ? (
@@ -98,13 +92,12 @@ export default async function AdminAgendaPage() {
                             <p className="mt-2 line-clamp-2 text-sm text-fg-muted">{item.summary}</p>
                           ) : null}
                         </div>
-                        <Link
-                          href={`/admin/comunicados/${item.id}`}
-                          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-surface px-4 text-sm font-semibold text-fg hover:border-accent/30 hover:bg-muted"
-                        >
-                          <Icon icon={Pencil} className="h-4 w-4" />
-                          Revisar / editar
-                        </Link>
+                        <ActionBar className="sm:w-auto" align="end">
+                          <ButtonLink href={`/admin/comunicados/${item.id}`} variant="secondary">
+                            <Icon icon={Pencil} className="h-4 w-4" />
+                            Revisar / editar
+                          </ButtonLink>
+                        </ActionBar>
                       </Card>
                     </li>
                   ))}

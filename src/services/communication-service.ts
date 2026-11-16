@@ -1,16 +1,17 @@
 import type { SessionUser } from "@/lib/authz";
-import { requireCommunicator, requireUser } from "@/lib/authz";
+import { requireMetarh, requireUser } from "@/lib/authz";
+import { AppRole, resolveEffectiveRole } from "@/types/roles";
+import { AudienceType } from "@/types/audience";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { sanitizeCommunicationHtml } from "@/lib/sanitize-html";
 import {
   computeObservabilityMetrics,
   computeReadMetrics,
-  defaultPushCopy,
   isVisibleToCollaborator,
   selectUnreadPopup,
 } from "@/domain/communication-rules";
 import { assertFutureDate } from "@/lib/datetime";
-import { CommunicationStatus } from "@/types/communication";
+import { CommunicationStatus, DeliveryStatus, NotificationChannel } from "@/types/communication";
 import { communicationInputSchema } from "@/validations/communication";
 import {
   aggregateEngagementFunnel,
@@ -25,7 +26,6 @@ import {
   findRead,
   listAdmin,
   listCategories,
-  listCollaboratorUserIds,
   listDueExpired,
   listDueScheduled,
   listPublishedForFeed,
@@ -34,69 +34,28 @@ import {
   listUnreadEligible,
   lowestReadRate,
   publicationsByDay,
+  replaceCommunicationTargets,
   searchHistory,
   updateCommunication,
   upsertAcknowledge,
   upsertView,
 } from "@/repositories/communication-repository";
+import { countUsersMatchingAudience } from "@/repositories/user-repository";
 import {
   countDeliveries,
   countInAppNotifications,
   countOpenedNotifications,
-  createNotificationsForUsers,
-  logDeliveriesMany,
-  logDelivery,
   markNotificationOpenedByCommunication,
   markNotificationsForCommunication,
 } from "@/repositories/notification-repository";
-import { countActiveUsers } from "@/repositories/user-repository";
-import { DeliveryStatus, NotificationChannel } from "@/types/communication";
-import { sendWebPushForPublication } from "@/services/push-service";
+import {
+  countActivePushSubscriptions,
+  countActiveUsers,
+  countUsersWithActivePush,
+} from "@/repositories/user-repository";
+import { enqueuePublicationFanout } from "@/services/delivery-queue-service";
 
-async function fanOutPublication(
-  communicationId: string,
-  options: { sendPush?: boolean } = {},
-) {
-  const sendPush = options.sendPush ?? true;
-  const communication = await findCommunicationById(communicationId);
-  const fallback = defaultPushCopy();
-  const title = communication?.title?.slice(0, 120) || fallback.title;
-  const body = communication?.summary?.slice(0, 200) || fallback.body;
-  const userIds = await listCollaboratorUserIds();
-  await createNotificationsForUsers({
-    userIds,
-    communicationId,
-    title,
-    body,
-  });
-  await logDeliveriesMany(
-    userIds.map((userId) => ({
-      communicationId,
-      userId,
-      channel: NotificationChannel.IN_APP,
-      status: DeliveryStatus.SENT,
-    })),
-  );
-  if (!sendPush) return;
-  try {
-    await sendWebPushForPublication(communicationId);
-  } catch (error) {
-    await logDelivery({
-      communicationId,
-      channel: NotificationChannel.WEB_PUSH,
-      status: DeliveryStatus.FAILED,
-      errorCode: error instanceof Error ? error.message.slice(0, 180) : "FANOUT_PUSH_ERROR",
-    });
-    // Não falha a publicação se o push cair — o comunicado já está público.
-  }
-}
-
-async function markPublished(
-  id: string,
-  actorId: string,
-  publishedAt: Date,
-  options: { sendPush?: boolean } = {},
-) {
+async function markPublished(id: string, actorId: string, publishedAt: Date) {
   const updated = await updateCommunication(id, {
     status: CommunicationStatus.PUBLISHED,
     publishedAt,
@@ -108,12 +67,30 @@ async function markPublished(
     actorUserId: actorId,
     communicationId: id,
   });
-  await fanOutPublication(id, options);
+  // Fan-out (in-app + push) vai para a fila — resposta de publicar não espera 300 envios.
+  await enqueuePublicationFanout(id);
   return updated;
 }
 
+async function persistAudience(
+  communicationId: string,
+  audienceType: string,
+  targets: Array<{ targetType: string; targetValue: string }>,
+) {
+  const normalizedType =
+    audienceType === AudienceType.FILTERED && targets.length > 0
+      ? AudienceType.FILTERED
+      : AudienceType.ALL;
+  await updateCommunication(communicationId, { audienceType: normalizedType });
+  await replaceCommunicationTargets(
+    communicationId,
+    normalizedType === AudienceType.FILTERED ? targets : [],
+  );
+  return normalizedType;
+}
+
 export async function saveDraft(user: SessionUser | undefined, raw: unknown) {
-  const actor = requireCommunicator(user);
+  const actor = requireMetarh(user);
   const parsed = communicationInputSchema.parse(raw);
   const category = await findCategoryById(parsed.categoryId);
   if (!category) throw new ValidationError("Categoria inválida.");
@@ -129,7 +106,9 @@ export async function saveDraft(user: SessionUser | undefined, raw: unknown) {
     status: CommunicationStatus.DRAFT,
     priority: parsed.priority,
     expiresAt: parsed.expiresAt ?? null,
+    audienceType: parsed.audienceType,
   });
+  await persistAudience(created.id, parsed.audienceType, parsed.targets);
   await createAudit({
     action: "COMMUNICATION_CREATED",
     actorUserId: actor.id,
@@ -139,7 +118,7 @@ export async function saveDraft(user: SessionUser | undefined, raw: unknown) {
 }
 
 export async function updateDraft(user: SessionUser | undefined, id: string, raw: unknown) {
-  const actor = requireCommunicator(user);
+  const actor = requireMetarh(user);
   const existing = await findCommunicationById(id);
   if (!existing) throw new NotFoundError("Comunicado não encontrado.");
   if (existing.status !== CommunicationStatus.DRAFT && existing.status !== CommunicationStatus.SCHEDULED) {
@@ -158,6 +137,7 @@ export async function updateDraft(user: SessionUser | undefined, id: string, raw
     priority: parsed.priority,
     expiresAt: parsed.expiresAt ?? null,
   });
+  await persistAudience(id, parsed.audienceType, parsed.targets);
   await createAudit({
     action: "COMMUNICATION_EDITED",
     actorUserId: actor.id,
@@ -166,19 +146,26 @@ export async function updateDraft(user: SessionUser | undefined, id: string, raw
   return updated;
 }
 
+export async function previewAudienceCount(
+  user: SessionUser | undefined,
+  input: { audienceType: string; targets: Array<{ targetType: string; targetValue: string }> },
+) {
+  requireMetarh(user);
+  return countUsersMatchingAudience(input);
+}
+
 export async function publishNow(user: SessionUser | undefined, id: string) {
-  const actor = requireCommunicator(user);
+  const actor = requireMetarh(user);
   const existing = await findCommunicationById(id);
   if (!existing) throw new NotFoundError("Comunicado não encontrado.");
   if (existing.status !== CommunicationStatus.DRAFT && existing.status !== CommunicationStatus.SCHEDULED) {
     throw new ValidationError("Este comunicado não pode ser publicado.");
   }
-  // Push vai pela API /api/push/dispatch (mesmo runtime do teste que funciona na Vercel).
-  return markPublished(id, actor.id, new Date(), { sendPush: false });
+  return markPublished(id, actor.id, new Date());
 }
 
 export async function schedulePublication(user: SessionUser | undefined, id: string, scheduledPublishAt: Date) {
-  const actor = requireCommunicator(user);
+  const actor = requireMetarh(user);
   const existing = await findCommunicationById(id);
   if (!existing) throw new NotFoundError("Comunicado não encontrado.");
   if (existing.status !== CommunicationStatus.DRAFT && existing.status !== CommunicationStatus.SCHEDULED) {
@@ -205,7 +192,7 @@ export async function schedulePublication(user: SessionUser | undefined, id: str
 }
 
 export async function cancelSchedule(user: SessionUser | undefined, id: string) {
-  const actor = requireCommunicator(user);
+  const actor = requireMetarh(user);
   const existing = await findCommunicationById(id);
   if (!existing) throw new NotFoundError("Comunicado não encontrado.");
   if (existing.status !== CommunicationStatus.SCHEDULED) {
@@ -224,7 +211,7 @@ export async function cancelSchedule(user: SessionUser | undefined, id: string) 
 }
 
 export async function cancelCommunication(user: SessionUser | undefined, id: string) {
-  const actor = requireCommunicator(user);
+  const actor = requireMetarh(user);
   const existing = await findCommunicationById(id);
   if (!existing) throw new NotFoundError("Comunicado não encontrado.");
   if (existing.status !== CommunicationStatus.DRAFT && existing.status !== CommunicationStatus.SCHEDULED) {
@@ -246,8 +233,7 @@ export async function processScheduledJobs(now = new Date()) {
   const due = await listDueScheduled(now);
   const publishedIds: string[] = [];
   for (const item of due) {
-    // Push no mesmo runtime do cron/RSC (não Server Action) — VAPID disponível.
-    await markPublished(item.id, item.authorUserId, now, { sendPush: true });
+    await markPublished(item.id, item.authorUserId, now);
     publishedIds.push(item.id);
   }
   const expired = await listDueExpired(now);
@@ -259,6 +245,21 @@ export async function processScheduledJobs(now = new Date()) {
 
 export async function getHomeData(user: SessionUser | undefined) {
   const actor = requireUser(user);
+  const effectiveRole =
+    actor.effectiveRole ??
+    resolveEffectiveRole({ roles: actor.roles, contractStatus: actor.contractStatus });
+
+  if (effectiveRole === AppRole.CANDIDATE) {
+    return {
+      featured: null,
+      latest: [],
+      popup: null,
+      readIds: new Set<string>(),
+      unreadCount: 0,
+      effectiveRole,
+    };
+  }
+
   const now = new Date();
   const feed = await listPublishedForFeed(now, 12, actor.id);
   const unread = await listUnreadEligible(actor.id, now);
@@ -270,7 +271,7 @@ export async function getHomeData(user: SessionUser | undefined) {
       .filter((item) => item.reads.some((read) => read.acknowledgedAt != null))
       .map((item) => item.id),
   );
-  return { featured, latest, popup, readIds, unreadCount: unread.length };
+  return { featured, latest, popup, readIds, unreadCount: unread.length, effectiveRole };
 }
 
 export async function getCommunicationForCollaborator(user: SessionUser | undefined, id: string) {
@@ -338,30 +339,35 @@ export async function getHistory(user: SessionUser | undefined, filters: Paramet
 }
 
 export async function getAdminList(user: SessionUser | undefined, filters: Parameters<typeof listAdmin>[0]) {
-  requireCommunicator(user);
+  requireMetarh(user);
   return listAdmin(filters);
 }
 
 export async function getAdminAgenda(user: SessionUser | undefined) {
-  requireCommunicator(user);
+  requireMetarh(user);
   return listScheduledAgenda(new Date());
 }
 
 export async function getAdminDashboard(user: SessionUser | undefined) {
-  requireCommunicator(user);
+  requireMetarh(user);
   const eligible = await countEligibleCollaborators();
-  const activeUsers = await countActiveUsers();
-  const [counts, lowest, agenda, byDay, funnel] = await Promise.all([
-    countByStatus(),
-    lowestReadRate(eligible),
-    listScheduledAgenda(new Date()),
-    publicationsByDay(14),
-    aggregateEngagementFunnel(eligible),
-  ]);
+  const [counts, lowest, agenda, byDay, funnel, activeUsers, pushUsers, pushDevices] =
+    await Promise.all([
+      countByStatus(),
+      lowestReadRate(eligible),
+      listScheduledAgenda(new Date()),
+      publicationsByDay(14),
+      aggregateEngagementFunnel(eligible),
+      countActiveUsers(),
+      countUsersWithActivePush(),
+      countActivePushSubscriptions(),
+    ]);
   return {
     counts,
     eligible,
     activeUsers,
+    pushUsers,
+    pushDevices,
     lowest,
     agenda: agenda.slice(0, 4),
     byDay,
@@ -371,10 +377,16 @@ export async function getAdminDashboard(user: SessionUser | undefined) {
 }
 
 export async function getCommunicationMetrics(user: SessionUser | undefined, id: string) {
-  requireCommunicator(user);
+  requireMetarh(user);
   const item = await findCommunicationById(id);
   if (!item) throw new NotFoundError("Comunicado não encontrado.");
-  const eligibleCount = await countEligibleCollaborators();
+  const eligibleCount = await countUsersMatchingAudience({
+    audienceType: item.audienceType,
+    targets: item.targets.map((target) => ({
+      targetType: target.targetType,
+      targetValue: target.targetValue,
+    })),
+  });
   const [viewedCount, acknowledgedCount, openedCount, inAppCount, deliveryGroups, readers] =
     await Promise.all([
       countViews(id),

@@ -12,31 +12,33 @@ function isNextRedirect(error: unknown): boolean {
   return (error as { digest: string }).digest.startsWith("NEXT_REDIRECT");
 }
 
+function isCredentialsFailure(error: unknown): boolean {
+  if (error instanceof AuthError) return true;
+  if (!error || typeof error !== "object") return false;
+  const name = "name" in error ? String((error as { name?: unknown }).name ?? "") : "";
+  const type = "type" in error ? String((error as { type?: unknown }).type ?? "") : "";
+  return name === "CredentialsSignin" || type === "CredentialsSignin";
+}
+
 export function CredentialsSignInForm({ error }: { error?: string | null }) {
   async function login(formData: FormData) {
     "use server";
-    const email = String(formData.get("email") ?? "");
+    const email = String(formData.get("email") ?? "").trim();
     const password = String(formData.get("password") ?? "");
 
     try {
-      // redirect:false evita que o NEXT_REDIRECT do Auth.js vaze para o error.tsx
-      const result = await signIn("credentials", {
+      await signIn("credentials", {
         email,
         password,
-        redirect: false,
+        redirectTo: "/",
       });
-      if (result?.error) {
-        redirect("/login?error=credentials");
-      }
     } catch (err) {
       if (isNextRedirect(err)) throw err;
-      if (err instanceof AuthError) {
+      if (isCredentialsFailure(err)) {
         redirect("/login?error=credentials");
       }
       throw err;
     }
-
-    redirect("/");
   }
 
   return (

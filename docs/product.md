@@ -1,31 +1,24 @@
 # Product — Central de Comunicação Interna
 
 **App:** `comunicacao-interna`  
-**Hipótese do MVP:** colaboradores de ~400 pessoas encontram e não perdem comunicados institucionais se eles existirem em um único lugar autenticado, com leitura obrigatória dos não visualizados e aviso no celular quando o dispositivo permitir.  
-**Status Product:** definido (aguardando validação humana do escopo).  
-**Premissas:** usuários já possuem conta Microsoft corporativa (Entra ID); comunicadores são um conjunto pequeno e conhecido; nesta versão o público de cada comunicado é “todos os colaboradores autenticados”.
+**Hipótese:** central única autenticada para comunicados MetaRH, com quatro perfis (METARH, Cliente, Colaborador, Candidato), segmentação no disparo e canais institucionais (redes, site, YouTube, CS, FAQ, pesquisas, Selecty).  
+**Status Product:** evoluído (ADR-010 — perfis e audiência filtrada).  
+**Premissas:** auth interno no piloto (Entra opcional); atributos de contrato/RH no banco local até existir sync; URLs institucionais alinhadas a metarh.com.br / Selecty.
 
 ## Problema
 
-Comunicados internos (avisos, notícias, newsletters, mensagens da diretoria, eventos, alertas) hoje se espalham por e-mail, conversas e materiais avulsos. Colaboradores perdem o que é urgente, não sabem o que já leram e não têm um histórico pesquisável. Comunicadores não conseguem saber quem visualizou o que foi publicado.
-
-O problema **não** é “falta de um app nativo”. O problema é **falta de um canal único, autenticado, rastreável e acessível no celular**.
+Comunicados e canais institucionais se espalham (e-mail, WhatsApp, site, portal de vagas). Cada público (time MetaRH, cliente, alocado, candidato) precisa de um acesso coerente: o que ver, com quem falar e quais links oficiais usar. Sem segmentação, o disparo atinge “todo mundo” ou ninguém certo.
 
 ## Público
 
 | Persona | Quem é | Necessidade principal |
 | --- | --- | --- |
-| **Colaborador** | Qualquer pessoa da empresa com conta Entra (~400) | Ver o que é novo, ler com conforto no celular, ser avisado do urgente, consultar histórico |
-| **Comunicador** | Comunicação interna / RH / pessoas autorizadas | Publicar com qualidade, agendar, medir leitura básica, não depender de TI a cada envio |
+| **METARH** | Time interno com acesso completo | Disparar comunicados com filtros, ver performance, ajustar contratos/atributos de usuários |
+| **Cliente** | Contato da empresa contratante | Ver comunicados dos alocados; CS (WhatsApp/e-mail); redes; NPS/CSAT |
+| **Colaborador** | Pessoa com contrato ativo alocada | Comunicados, FAQ, links úteis, contato por e-mail, pesquisas |
+| **Candidato** | Sem contrato ativo (automático) | Redes oficiais + vagas Selecty |
 
-O comunicador **também é colaborador**: consome a home e ainda acessa a área administrativa.
-
-Papéis de produto (não são nomes de tabela):
-
-- `COLABORADOR` — consumo
-- `COMUNICADOR` — consumo + publicação e métricas
-
-Não há persona “administrador de sistema” no MVP. Gestão de quem é comunicador é operacional (atribuir papel), não um módulo de IAM avançado.
+Papéis persistidos: `METARH` | `CLIENT` | `COLLABORATOR` | `CANDIDATE` (`COMMUNICATOR` legado → `METARH`).
 
 ## Objetivos
 
@@ -41,10 +34,11 @@ Não há persona “administrador de sistema” no MVP. Gestão de quem é comun
 
 ### Autenticação e acesso
 
-- Login somente via Microsoft Entra ID
-- Sessão da fábrica (Auth.js)
-- Colaborador: home, detalhe, histórico, busca, filtros, notificações in-app, preferência de push, instalação PWA
-- Comunicador: tudo do colaborador + `/admin`
+- Login Auth.js (interno no piloto; Entra opcional)
+- Quatro perfis com menus e homes distintos
+- METARH: `/admin` (disparo, filtros, painel, usuários/contratos)
+- Cliente / Colaborador / Candidato: superfícies de consumo conforme matriz (sem `/admin`)
+- Redes, site e YouTube visíveis em todos os perfis
 
 ### Comunicado
 
@@ -54,7 +48,7 @@ Não há persona “administrador de sistema” no MVP. Gestão de quem é comun
 - Capa (arquivo via storage abstrato; local no desenvolvimento)
 - Conteúdo rico (título, subtítulo, parágrafos, listas, links, imagens, destaques)
 - Status: RASCUNHO, AGENDADO, PUBLICADO, EXPIRADO, CANCELADO
-- Público no MVP: todos os colaboradores (modelo preparado para segmentar depois)
+- Público: `ALL` ou `FILTERED` (Ativo/Inativo, Tipo de Contrato, Grupo Econômico, CNPJ, Plano de Saúde, Cartão de Reembolso, pessoa)
 
 Newsletter no MVP = **tipo/categoria de comunicado**, não plataforma de e-mail.
 
@@ -137,8 +131,9 @@ Newsletter no MVP = **tipo/categoria de comunicado**, não plataforma de e-mail.
 
 ### R1 — Papéis
 
-- Todo usuário autenticado e provisionado é pelo menos colaborador.
-- Comunicador = colaborador + área admin e mutações de comunicado.
+- Papéis: `METARH`, `CLIENT`, `COLLABORATOR`, `CANDIDATE`.
+- Só `METARH` acessa `/admin` e mutações de comunicado/usuários.
+- Sem contrato ativo → perfil efetivo `CANDIDATE` (exceto papel `METARH` / `CLIENT` explícito).
 - Middleware/proxy **não** é a única proteção.
 
 ### R2 — Ciclo de vida
@@ -163,9 +158,11 @@ Um comunicado é **elegível para consumo** se:
 - status = PUBLICADO (EXPIRADO não entra na home “ativa”)
 - `publishedAt` ≤ agora
 - `expiresAt` é nulo **ou** > agora
-- destinatário no MVP = todos os colaboradores autenticados
+- destinatário: `ALL` (ativos elegíveis ao consumo) **ou** `FILTERED` (AND dos targets)
+- Cliente: vê comunicados `ALL` ou cujo target casa com seu CNPJ / grupo econômico / `clientOrgId`
+- Candidato: não consome feed de comunicados (home institucional + Selecty)
 
-Histórico do colaborador: comunicados que **já foram publicados** e ainda são PUBLICADO ou EXPIRADO (não mostra rascunho, agendado, cancelado).
+Histórico: PUBLICADO ou EXPIRADO elegíveis ao perfil (não mostra rascunho, agendado, cancelado).
 
 ### R4 — Prioridade (visual e notificação)
 
@@ -199,9 +196,10 @@ A regra sugerida (urgente → importante → normal → mais recente) **é aceit
 
 ### R7 — Público / segmentação
 
-- MVP: `audience = ALL`.
-- Proibido modelar de forma que “todos” seja um hardcode impossível de evoluir (departamento, unidade, etc.).
-- Não implementar regras de segmento agora.
+- `audienceType`: `ALL` | `FILTERED`.
+- Targets: `CONTRACT_STATUS`, `CONTRACT_TYPE`, `ECONOMIC_GROUP`, `CNPJ`, `HEALTH_PLAN`, `REIMBURSEMENT_CARD`, `USER_ID` (AND quando vários).
+- Preview de contagem de destinatários antes de publicar.
+- Atributos de RH no usuário local (sem sync ERP neste ciclo).
 
 ### R8 — Notificações
 
@@ -268,25 +266,22 @@ Os itens abaixo são os de produto; detalhes técnicos (lint, build, security re
 - [ ] Conteúdo rico não executa script (sanitização)
 - [ ] Seed local fictício cobre os dois papéis e vários status/leituras
 
-## Escopo do MVP
+## Escopo do MVP (evolução)
 
-Um monolito Next.js, schema próprio, dois papéis, comunicados para todos, leitura rastreada, popup de não lido, PWA, Web Push, admin enxuto, busca SQL, agendamento simples, storage de imagens substituível, documentação e testes dos fluxos críticos.
+Monolito Next.js, schema próprio, quatro perfis, audiência ALL/FILTERED, bloco institucional (site/redes/YouTube), superfícies Cliente/Colaborador/Candidato (CS, FAQ, links, NPS/CSAT, Selecty), leitura rastreada, PWA, Web Push, admin METARH.
 
 ## Fora de escopo
 
 - App nativo (React Native, Flutter, stores)
-- Senha local, SSO além de Entra ID
-- E-mail marketing, envio de e-mail, Teams, SMS
-- Segmentação por departamento/unidade/cargo/grupo
+- Sync automático com ERP/folha
+- Motor NPS/CSAT nativo (apenas links)
+- Scraping / API Selecty de vagas (apenas deep link / embed)
+- WhatsApp Business API (apenas `wa.me`)
+- E-mail marketing, Teams, SMS
 - Despublicar comunicado já publicado; edição “silenciosa” sem auditoria
-- BI, analytics avançado, A/B, personalização por colaborador
-- Elasticsearch / OpenSearch, Kafka, Redis, microsserviços, Kubernetes
-- IAM self-service (convidar usuários, hierarquia de papéis)
-- Multi-tenant, white-label, tema por cliente
-- Worker distribuído / event sourcing / CQRS
-- Comentários, reações, confirmação jurídica (ciente com senha)
+- BI avançado, multi-tenant, worker distribuído
+- Comentários, reações, confirmação jurídica
 - Tradução / i18n além de português
-- Integração com intranet legado ou SharePoint
 
 ## Decisões de produto (explícitas)
 

@@ -6,21 +6,91 @@ import { PushPrompt } from "@/components/pwa/push-prompt";
 import { InstallAppCard } from "@/components/pwa/install-app-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
+import { InstitutionalLinks } from "@/components/institutional/institutional-links";
 import { Megaphone } from "lucide-react";
 import { mediaSrc } from "@/lib/media-url";
+import { AppRole } from "@/types/roles";
+import { institutionalLinks } from "@/config/institutional";
+import { contactConfig } from "@/config/contacts";
+import { surveyLinks } from "@/config/surveys";
+import { Card } from "@/components/ui/card";
+import { ActionBar, ButtonLink } from "@/components/ui/button";
 
 export default async function HomePage() {
   const session = await auth();
   const data = await getHomeData(session?.user);
   const firstName = session?.user?.name?.split(/\s+/)[0] ?? "olá";
+  const effectiveRole = data.effectiveRole ?? session?.user?.effectiveRole;
+
+  if (effectiveRole === AppRole.CANDIDATE) {
+    return (
+      <div className="mx-auto flex max-w-3xl flex-col gap-7">
+        <PageHeader
+          eyebrow="Candidato"
+          title={`Oi, ${firstName}`}
+          description="Acompanhe as redes METARH e as vagas abertas no Selecty."
+        />
+        <InstitutionalLinks />
+        <Card className="flex flex-col gap-3">
+          <h2 className="text-base font-semibold text-fg">Vagas Selecty</h2>
+          <p className="text-sm text-fg-muted">
+            Sem contrato ativo, seu acesso prioriza oportunidades publicadas pela METARH.
+          </p>
+          <ActionBar>
+            <ButtonLink href={institutionalLinks.selecty}>Ver vagas no Selecty</ButtonLink>
+            <ButtonLink href="/vagas" variant="secondary">
+              Abrir página de vagas
+            </ButtonLink>
+          </ActionBar>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-7">
       <PageHeader
-        eyebrow="Central"
+        eyebrow={effectiveRole === AppRole.CLIENT ? "Cliente" : "Central"}
         title={`Oi, ${firstName}`}
-        description="Acesse aqui os comunicados publicados para você, onde quiser, no celular ou no computador."
+        description={
+          effectiveRole === AppRole.CLIENT
+            ? "Comunicados dos seus alocados, canais de CS e pesquisas."
+            : "Acesse aqui os comunicados publicados para você, no celular ou no computador."
+        }
       />
+      <InstitutionalLinks compact showFacebook={false} />
+      {effectiveRole === AppRole.CLIENT ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Card className="flex flex-col gap-3">
+            <h2 className="text-center text-sm font-semibold text-fg sm:text-left">Fale com o CS</h2>
+            <ActionBar>
+              <ButtonLink href={contactConfig.csWhatsappUrl}>WhatsApp</ButtonLink>
+              <ButtonLink href={`mailto:${contactConfig.csEmail}`} variant="secondary">
+                E-mail CS
+              </ButtonLink>
+            </ActionBar>
+          </Card>
+          <Card className="flex flex-col gap-3">
+            <h2 className="text-center text-sm font-semibold text-fg sm:text-left">Pesquisas</h2>
+            <ActionBar>
+              {surveyLinks.nps ? (
+                <ButtonLink href={surveyLinks.nps} variant="secondary">
+                  Responder NPS
+                </ButtonLink>
+              ) : (
+                <p className="w-full text-center text-xs text-fg-muted sm:text-left">NPS em configuração</p>
+              )}
+              {surveyLinks.csat ? (
+                <ButtonLink href={surveyLinks.csat} variant="secondary">
+                  Responder CSAT
+                </ButtonLink>
+              ) : (
+                <p className="w-full text-center text-xs text-fg-muted sm:text-left">CSAT em configuração</p>
+              )}
+            </ActionBar>
+          </Card>
+        </div>
+      ) : null}
       <InstallAppCard />
       <PushPrompt />
       {data.popup ? (

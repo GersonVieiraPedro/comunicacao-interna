@@ -17,8 +17,9 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Central", statusBarStyle: "default" },
   icons: {
-    icon: "/logo-metarh-branco.ico",
-  }
+    icon: [{ url: "/logo-metarh-roxo.png", type: "image/png" }],
+    apple: [{ url: "/logo-metarh-roxo.png", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {

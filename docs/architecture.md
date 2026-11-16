@@ -21,7 +21,7 @@ Público ~400 colaboradores; comunicadores são subconjunto. Canal futuro (e-mai
 | Hosting alvo | Vercel (validação); container `standalone` permanece no template para Azure |
 | Testes | Vitest + Playwright |
 
-Desvio de papéis do scaffold (`ADMIN`/`USER`): papéis de **domínio** `COLLABORATOR` e `COMMUNICATOR` (ver AuthZ e ADR de papéis implícito em Riscos). Express: não.
+Desvio de papéis do scaffold (`ADMIN`/`USER`): papéis de **domínio** `METARH`, `CLIENT`, `COLLABORATOR`, `CANDIDATE` (ADR-010). `COMMUNICATOR` legado normaliza para `METARH`. Express: não.
 
 ## Estrutura
 
@@ -52,9 +52,9 @@ Agregado principal: **Communication** (comunicado institucional: notícia, aviso
 Publication (serviço)
   → persiste status PUBLICADO
   → AuditEvent
-  → NotificationEvent (in-memory / registro de log)
-       ├─ In-app Notification (persistida por usuário)
-       └─ Web Push (subscriptions ativas)
+  → DeliveryJob (fila SQL)
+       ├─ Worker em lotes: In-app Notification
+       ├─ Worker em lotes: Web Push
        └─ (futuro) Email / Teams
 ```
 
@@ -70,7 +70,7 @@ Módulos:
 | media | capa via FileStorage |
 | pwa | manifest, SW, install UX |
 
-**Público:** campo `audienceType = ALL` no comunicado. Tabela `communication_targets` reservada (vazia no MVP) para departamento/unidade/grupo sem retrabalho de modelo. Nenhuma query do MVP filtra alvo além de ALL.
+**Público:** `audienceType = ALL | FILTERED`. `communication_targets` com critérios de RH/contrato (`CONTRACT_STATUS`, `CONTRACT_TYPE`, `ECONOMIC_GROUP`, `CNPJ`, `HEALTH_PLAN`, `REIMBURSEMENT_CARD`, `USER_ID`). AND entre critérios. Fan-out e feed resolvem elegíveis por esses campos no `User`.
 
 **Newsletter:** `category.slug = newsletter` (ou categoria seed). Sem motor de e-mail.
 
@@ -85,10 +85,10 @@ Módulos:
 
 Modelo lógico (nomes físicos em `docs/database.md` na etapa Database):
 
-- `users`, `user_roles`
+- `users` (+ atributos RH: contractStatus, contractType, economicGroup, cnpj, healthPlan, reimbursementCard, clientOrgId), `user_roles`
 - `communication_categories`
 - `communications`
-- `communication_targets` (futuro; MVP sem linhas)
+- `communication_targets` (segmentação FILTERED)
 - `communication_reads` (único por par usuário–comunicado; `firstViewedAt`; opcional `lastViewedAt`, `viewCount`)
 - `push_subscriptions`
 - `notifications` (in-app)
@@ -106,14 +106,16 @@ Padrão do template: `auth.config.ts` (Edge, sem Prisma) + `auth.ts` (Node, sync
 
 ### Papéis (substitui ADMIN/USER do scaffold)
 
-| Produto | Valor persistido | Entra |
+| Produto | Valor persistido | Notas |
 | --- | --- | --- |
-| Colaborador | `COLLABORATOR` | grupos `AUTH_COLLABORATOR_GROUP_IDS` ou padrão pós-login |
-| Comunicador | `COMMUNICATOR` | grupos `AUTH_COMMUNICATOR_GROUP_IDS` |
+| METARH | `METARH` | Admin completo; substitui `COMMUNICATOR` |
+| Cliente | `CLIENT` | Comunicados dos alocados + CS + pesquisas |
+| Colaborador | `COLLABORATOR` | Consumo + FAQ/links |
+| Candidato | `CANDIDATE` | Redes + Selecty; automático sem contrato ativo |
 
-`COMMUNICATOR` inclui capacidades de colaborador no código (`hasCommunicator` / `hasCollaborator`).
+`METARH` inclui consumo. Perfil efetivo recalculado na sessão a partir de `contractStatus` + papéis persistidos (ADR-010).
 
-Compatibilidade: se ainda existirem env `AUTH_ADMIN_GROUP_IDS` / `AUTH_USER_GROUP_IDS` no template, mapear na implementação para os novos nomes **ou** aceitar os antigos como alias documentado — sem dois sistemas de papel.
+Config institucional: `src/config/institutional.ts`, contatos CS e pesquisas via env.
 
 ### Rotas
 
@@ -121,7 +123,7 @@ Públicas: `/login`, `/auth/*`, `/api/auth/*`, `GET /api/health`, assets PWA (`/
 
 Protegidas (sessão): home, comunicados, histórico, configurações, sino, APIs de negócio, `/admin/*`.
 
-`/admin/**`: papel `COMMUNICATOR` no **layout e em cada Server Action/service**. Colaborador recebe 403, não vazamento de rascunhos.
+`/admin/**`: papel efetivo `METARH` no **layout e em cada Server Action/service**. Demais perfis recebem 403.
 
 Cron: `POST /api/cron/publish-scheduled` autenticado por `CRON_SECRET` (não por cookie de usuário).
 
@@ -134,10 +136,10 @@ Preferir Server Actions para mutações de página (criar, publicar, marcar lido
 | `GET /api/health` | público | liveness |
 | `GET/POST /api/auth/*` | Auth.js | |
 | `GET /api/me` | usuário | papéis |
-| Server Actions communications | comunicador | CRUD, publish, schedule, cancel schedule |
-| Server Action `acknowledgeRead` | colaborador | idempotente |
-| `POST/DELETE /api/push/subscriptions` | colaborador | upsert por endpoint |
-| `POST /api/media/cover` | comunicador | multipart; tipo/tamanho |
+| Server Actions communications | METARH | CRUD, publish, schedule, cancel schedule, targets |
+| Server Action `acknowledgeRead` | consumidor elegível | idempotente |
+| `POST/DELETE /api/push/subscriptions` | sessão | upsert por endpoint |
+| `POST /api/media/cover` | METARH | multipart; tipo/tamanho |
 | `POST /api/cron/publish-scheduled` | cron secret | publica AGENDADO devido |
 | `GET /api/push/vapid-public-key` | sessão | ou expor só `NEXT_PUBLIC_*` da chave **pública** VAPID |
 

@@ -5,7 +5,8 @@ import { PushSettings } from "@/components/pwa/push-settings";
 import { InstallAppCard } from "@/components/pwa/install-app-card";
 import { ProfileForm } from "@/features/users/profile-form";
 import { getProfile } from "@/services/user-service";
-import { hasCommunicatorRole } from "@/types/roles";
+import { hasMetarhRole } from "@/types/roles";
+import { InstitutionalLinks } from "@/components/institutional/institutional-links";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -31,7 +32,13 @@ export default async function SettingsPage() {
         <div className="px-5 py-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-fg-muted">Papel</p>
           <p className="mt-1 text-sm font-medium text-fg">
-            {hasCommunicatorRole(profile.roles) ? "Comunicador" : "Colaborador"}
+            {hasMetarhRole(profile.roles)
+              ? "METARH"
+              : profile.effectiveRole === "CLIENT"
+                ? "Cliente"
+                : profile.effectiveRole === "CANDIDATE"
+                  ? "Candidato"
+                  : "Colaborador"}
           </p>
         </div>
       </Card>
@@ -41,7 +48,8 @@ export default async function SettingsPage() {
         hasPassword={profile.hasPassword}
       />
       <InstallAppCard variant="settings" />
-      <PushSettings canBroadcastTest={hasCommunicatorRole(profile.roles)} />
+      <PushSettings canBroadcastTest={hasMetarhRole(profile.roles)} />
+      <InstitutionalLinks />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { getHistory, categoriesForUi } from "@/services/communication-service";
 import { CommunicationCard } from "@/features/communications/communication-card";
 import { historyQuerySchema } from "@/validations/communication";
 import { PageHeader } from "@/components/layout/page-header";
+import { ActionBar, Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import Link from "next/link";
 import { Inbox } from "lucide-react";
@@ -36,14 +37,14 @@ export default async function HistoryPage({
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <PageHeader title="Histórico" description="Comunicados publicados e expirados." />
-      <form className="grid gap-3 rounded-lg border border-border bg-surface p-4 md:grid-cols-2">
+      <form className="grid gap-3 rounded-2xl border border-border bg-surface p-4 md:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
           Busca
-          <input name="q" defaultValue={parsed.q} className="rounded border border-border px-3 py-2" />
+          <input name="q" defaultValue={parsed.q} className="min-h-11 rounded-full border border-border px-4" />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Categoria
-          <select name="categoryId" defaultValue={parsed.categoryId ?? ""} className="rounded border border-border px-3 py-2">
+          <select name="categoryId" defaultValue={parsed.categoryId ?? ""} className="min-h-11 rounded-full border border-border px-4">
             <option value="">Todas</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
@@ -54,19 +55,21 @@ export default async function HistoryPage({
         </label>
         <label className="flex flex-col gap-1 text-sm">
           De
-          <input type="date" name="from" defaultValue={raw.from?.toString() ?? ""} className="rounded border border-border px-3 py-2" />
+          <input type="date" name="from" defaultValue={raw.from?.toString() ?? ""} className="min-h-11 rounded-full border border-border px-4" />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Até
-          <input type="date" name="to" defaultValue={raw.to?.toString() ?? ""} className="rounded border border-border px-3 py-2" />
+          <input type="date" name="to" defaultValue={raw.to?.toString() ?? ""} className="min-h-11 rounded-full border border-border px-4" />
         </label>
-        <label className="flex items-center gap-2 text-sm md:col-span-2">
+        <label className="flex items-center justify-center gap-2 text-sm md:col-span-2 md:justify-start">
           <input type="checkbox" name="unreadOnly" value="1" defaultChecked={parsed.unreadOnly} />
           Somente não visualizados
         </label>
-        <button type="submit" className="rounded bg-accent px-3 py-2 text-sm font-medium text-white">
-          Filtrar
-        </button>
+        <div className="md:col-span-2">
+          <ActionBar>
+            <Button type="submit">Filtrar</Button>
+          </ActionBar>
+        </div>
       </form>
       {result.items.length === 0 ? (
         <EmptyState title="Nada encontrado" description="Ajuste a busca ou os filtros." icon={Inbox} />

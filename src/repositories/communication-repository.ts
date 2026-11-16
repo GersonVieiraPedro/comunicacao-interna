@@ -34,8 +34,30 @@ export async function createCommunication(data: {
   priority: string;
   scheduledPublishAt?: Date | null;
   expiresAt?: Date | null;
+  audienceType?: string;
 }) {
-  return prisma.communication.create({ data });
+  return prisma.communication.create({
+    data: {
+      ...data,
+      audienceType: data.audienceType ?? "ALL",
+    },
+  });
+}
+
+export async function replaceCommunicationTargets(
+  communicationId: string,
+  targets: Array<{ targetType: string; targetValue: string }>,
+) {
+  await prisma.communicationTarget.deleteMany({ where: { communicationId } });
+  if (!targets.length) return [];
+  await prisma.communicationTarget.createMany({
+    data: targets.map((target) => ({
+      communicationId,
+      targetType: target.targetType,
+      targetValue: target.targetValue,
+    })),
+  });
+  return prisma.communicationTarget.findMany({ where: { communicationId } });
 }
 
 export async function updateCommunication(id: string, data: Record<string, unknown>) {
@@ -45,22 +67,54 @@ export async function updateCommunication(id: string, data: Record<string, unkno
 export async function findCommunicationById(id: string) {
   return prisma.communication.findUnique({
     where: { id },
-    include: { category: true, author: true, publishedBy: true },
+    include: { category: true, author: true, publishedBy: true, targets: true },
   });
 }
 
 export async function listPublishedForFeed(now: Date, take: number, userId: string) {
-  return prisma.communication.findMany({
+  const { userMatchesAudience, communicationVisibleToClient } = await import(
+    "@/domain/audience-matching"
+  );
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { roles: true },
+  });
+  if (!user) return [];
+
+  const items = await prisma.communication.findMany({
     where: {
       status: CommunicationStatus.PUBLISHED,
-      audienceType: "ALL",
+      audienceType: { in: ["ALL", "FILTERED"] },
       publishedAt: { lte: now },
       OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
     },
-    include: { category: true, reads: { where: { userId } } },
+    include: { category: true, reads: { where: { userId } }, targets: true },
     orderBy: { publishedAt: "desc" },
-    take,
+    take: Math.max(take * 4, 40),
   });
+
+  const audienceUser = {
+    id: user.id,
+    active: user.active,
+    contractStatus: user.contractStatus,
+    contractType: user.contractType,
+    economicGroup: user.economicGroup,
+    cnpj: user.cnpj,
+    healthPlan: user.healthPlan,
+    reimbursementCard: user.reimbursementCard,
+    clientOrgId: user.clientOrgId,
+    roles: user.roles.map((role) => role.role),
+  };
+
+  const isClient = audienceUser.roles.includes("CLIENT");
+  return items
+    .filter((item) => {
+      if (isClient) {
+        return communicationVisibleToClient(item.audienceType, item.targets, audienceUser);
+      }
+      return userMatchesAudience(audienceUser, item.audienceType, item.targets);
+    })
+    .slice(0, take);
 }
 
 export async function listDueScheduled(now: Date) {
@@ -110,7 +164,7 @@ export async function searchHistory(filters: HistoryFilters) {
 
   const where = {
     status: { in: [CommunicationStatus.PUBLISHED, CommunicationStatus.EXPIRED] },
-    audienceType: "ALL",
+    audienceType: { in: ["ALL", "FILTERED"] },
     publishedAt: {
       lte: now,
       ...(filters.from ? { gte: filters.from } : {}),
@@ -129,17 +183,46 @@ export async function searchHistory(filters: HistoryFilters) {
     ...unreadFilter,
   };
 
-  const [total, items] = await prisma.$transaction([
-    prisma.communication.count({ where }),
-    prisma.communication.findMany({
-      where,
-      include: { category: true, reads: { where: { userId } } },
-      orderBy: { publishedAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-  ]);
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { roles: true },
+  });
+  const { userMatchesAudience, communicationVisibleToClient } = await import(
+    "@/domain/audience-matching"
+  );
 
+  const allItems = await prisma.communication.findMany({
+    where,
+    include: { category: true, reads: { where: { userId } }, targets: true },
+    orderBy: { publishedAt: "desc" },
+  });
+
+  const audienceUser = user
+    ? {
+        id: user.id,
+        active: user.active,
+        contractStatus: user.contractStatus,
+        contractType: user.contractType,
+        economicGroup: user.economicGroup,
+        cnpj: user.cnpj,
+        healthPlan: user.healthPlan,
+        reimbursementCard: user.reimbursementCard,
+        clientOrgId: user.clientOrgId,
+        roles: user.roles.map((role) => role.role),
+      }
+    : null;
+
+  const filtered = audienceUser
+    ? allItems.filter((item) => {
+        if (audienceUser.roles.includes("CLIENT")) {
+          return communicationVisibleToClient(item.audienceType, item.targets, audienceUser);
+        }
+        return userMatchesAudience(audienceUser, item.audienceType, item.targets);
+      })
+    : [];
+
+  const total = filtered.length;
+  const items = filtered.slice((page - 1) * pageSize, page * pageSize);
   return { total, items };
 }
 
@@ -396,23 +479,10 @@ export async function findRead(userId: string, communicationId: string) {
 
 /** Pendentes de confirmação explícita (ainda não deram "ciência"). */
 export async function listUnreadEligible(userId: string, now: Date) {
-  return prisma.communication.findMany({
-    where: {
-      status: CommunicationStatus.PUBLISHED,
-      audienceType: "ALL",
-      publishedAt: { lte: now },
-      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-      NOT: {
-        reads: {
-          some: {
-            userId,
-            acknowledgedAt: { not: null },
-          },
-        },
-      },
-    },
-    include: { category: true },
-  });
+  const feed = await listPublishedForFeed(now, 50, userId);
+  return feed.filter(
+    (item) => !item.reads.some((read) => read.acknowledgedAt != null),
+  );
 }
 
 export async function listReaders(communicationId: string) {

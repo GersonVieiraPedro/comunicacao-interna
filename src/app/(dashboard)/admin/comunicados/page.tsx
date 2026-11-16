@@ -4,6 +4,7 @@ import { adminQuerySchema } from "@/validations/communication";
 import { PageHeader } from "@/components/layout/page-header";
 import { Table, THead, TBody, TH, TD } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { ActionBar, Button, ButtonLink } from "@/components/ui/button";
 import Link from "next/link";
 import { CommunicationStatus } from "@/types/communication";
 
@@ -38,24 +39,16 @@ export default async function AdminListPage({
       <PageHeader
         title="Comunicados"
         actions={
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/admin/agenda"
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-fg hover:bg-muted"
-            >
+          <>
+            <ButtonLink href="/admin/agenda" variant="secondary">
               Agenda
-            </Link>
-            <Link
-              href="/admin/comunicados/novo"
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover"
-            >
-              Novo
-            </Link>
-          </div>
+            </ButtonLink>
+            <ButtonLink href="/admin/comunicados/novo">Novo</ButtonLink>
+          </>
         }
       />
-      <form className="flex flex-col gap-3 md:flex-row">
-        <select name="status" defaultValue={parsed.status ?? ""} className="rounded border border-border px-3 py-2 text-sm">
+      <form className="flex flex-col gap-3 md:flex-row md:items-center">
+        <select name="status" defaultValue={parsed.status ?? ""} className="min-h-11 rounded-full border border-border bg-surface px-4 text-sm">
           <option value="">Status</option>
           {Object.entries(statusLabel).map(([value, label]) => (
             <option key={value} value={value}>
@@ -63,7 +56,7 @@ export default async function AdminListPage({
             </option>
           ))}
         </select>
-        <select name="categoryId" defaultValue={parsed.categoryId ?? ""} className="rounded border border-border px-3 py-2 text-sm">
+        <select name="categoryId" defaultValue={parsed.categoryId ?? ""} className="min-h-11 rounded-full border border-border bg-surface px-4 text-sm">
           <option value="">Categoria</option>
           {categories.map((category) => (
             <option key={category.id} value={category.id}>
@@ -71,9 +64,11 @@ export default async function AdminListPage({
             </option>
           ))}
         </select>
-        <button type="submit" className="rounded border border-border px-3 py-2 text-sm">
-          Filtrar
-        </button>
+        <ActionBar className="md:w-auto" align="start">
+          <Button type="submit" variant="secondary">
+            Filtrar
+          </Button>
+        </ActionBar>
       </form>
       <Table>
         <THead>

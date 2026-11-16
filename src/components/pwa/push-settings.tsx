@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bell, BellOff, BellRing, CheckCircle2, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ActionBar, Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/cn";
 import { readLocalPushState, registerPushSubscription } from "@/lib/push-client";
@@ -152,7 +152,7 @@ export function PushSettings({ canBroadcastTest = false }: { canBroadcastTest?: 
       <div className="space-y-3 px-5 py-4">
         {support && ui === "unsupported" ? <p className="text-sm text-fg-muted">{support}</p> : null}
 
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <ActionBar>
           {ui !== "unsupported" ? (
             <Button onClick={() => void enable()} disabled={busy || ui === "blocked"}>
               {busy ? (
@@ -178,7 +178,7 @@ export function PushSettings({ canBroadcastTest = false }: { canBroadcastTest?: 
               Enviar notificação de teste
             </Button>
           ) : null}
-        </div>
+        </ActionBar>
 
         {status ? (
           <p

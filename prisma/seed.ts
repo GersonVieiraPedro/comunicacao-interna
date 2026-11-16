@@ -37,45 +37,84 @@ async function main() {
     email: `colaborador${index + 1}@empresa.exemplo`,
     displayName: `Colaborador ${index + 1}`,
     role: AppRole.COLLABORATOR,
+    contractStatus: "ACTIVE",
+    contractType: index % 2 === 0 ? "TEMPORARY" : "THIRD_PARTY",
+    economicGroup: index < 5 ? "Grupo Alpha" : "Grupo Beta",
+    cnpj: index < 5 ? "11222333000181" : "44555666000172",
   }));
 
-  const communicators = [
+  const metarhUsers = [
     {
       entraObjectId: "seed-com-1",
       email: "comunicador1@empresa.exemplo",
-      displayName: "Comunicador Ana",
-      role: AppRole.COMMUNICATOR,
+      displayName: "METARH Ana",
+      role: AppRole.METARH,
+      contractStatus: "ACTIVE",
     },
     {
       entraObjectId: "seed-com-2",
       email: "comunicador2@empresa.exemplo",
-      displayName: "Comunicador Bruno",
-      role: AppRole.COMMUNICATOR,
+      displayName: "METARH Bruno",
+      role: AppRole.METARH,
+      contractStatus: "ACTIVE",
+    },
+  ];
+
+  const extras = [
+    {
+      entraObjectId: "seed-client-1",
+      email: "cliente1@empresa.exemplo",
+      displayName: "Cliente Carla",
+      role: AppRole.CLIENT,
+      contractStatus: "ACTIVE",
+      cnpj: "11222333000181",
+      economicGroup: "Grupo Alpha",
+      clientOrgId: "org-alpha",
+    },
+    {
+      entraObjectId: "seed-cand-1",
+      email: "candidato1@empresa.exemplo",
+      displayName: "Candidato Diego",
+      role: AppRole.CANDIDATE,
+      contractStatus: "NONE",
     },
   ];
 
   const passwordHash = await hashPassword(DEFAULT_SEED_PASSWORD);
-  const people = [...collaborators, ...communicators];
+  const people = [...collaborators, ...metarhUsers, ...extras];
   const users = [];
   for (const person of people) {
     const email = person.email.trim().toLowerCase();
     const subject = credentialsSubject(email);
     const roles =
-      person.role === AppRole.COMMUNICATOR
-        ? [{ role: AppRole.COLLABORATOR }, { role: AppRole.COMMUNICATOR }]
-        : [{ role: AppRole.COLLABORATOR }];
+      person.role === AppRole.METARH
+        ? [{ role: AppRole.COLLABORATOR }, { role: AppRole.METARH }]
+        : [{ role: person.role }];
+    const hr = {
+      contractStatus: person.contractStatus ?? null,
+      contractType: "contractType" in person ? (person.contractType as string | null) : null,
+      economicGroup: "economicGroup" in person ? (person.economicGroup as string | null) : null,
+      cnpj: "cnpj" in person ? (person.cnpj as string | null) : null,
+      clientOrgId: "clientOrgId" in person ? (person.clientOrgId as string | null) : null,
+    };
     const user = await prisma.user.upsert({
       where: { email },
       update: {
         displayName: person.displayName,
         passwordHash,
         entraObjectId: subject,
+        ...hr,
+        roles: {
+          deleteMany: {},
+          create: roles,
+        },
       },
       create: {
         entraObjectId: subject,
         email,
         displayName: person.displayName,
         passwordHash,
+        ...hr,
         roles: { create: roles },
       },
     });
@@ -232,13 +271,19 @@ async function main() {
         displayName: adminName,
         passwordHash: adminHash,
         roles: {
-          create: [{ role: AppRole.COLLABORATOR }, { role: AppRole.COMMUNICATOR }],
+          create: [{ role: AppRole.COLLABORATOR }, { role: AppRole.METARH }],
         },
+        contractStatus: "ACTIVE",
       },
       update: {
         displayName: adminName,
         passwordHash: adminHash,
         entraObjectId: subject,
+        roles: {
+          deleteMany: {},
+          create: [{ role: AppRole.COLLABORATOR }, { role: AppRole.METARH }],
+        },
+        contractStatus: "ACTIVE",
       },
     });
   }

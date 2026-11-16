@@ -7,6 +7,7 @@ import { CommunicationStatus } from "@/types/communication";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 import { Plus } from "lucide-react";
+import { ButtonLink } from "@/components/ui/button";
 import { formatBrazilDateTime } from "@/lib/datetime";
 import { AdminDashboardCharts } from "@/features/admin/admin-dashboard-charts";
 
@@ -35,6 +36,12 @@ export default async function AdminHomePage() {
       value: data.activeUsers,
       href: "/admin/usuarios",
     },
+    {
+      label: "Com push ativo",
+      value: data.pushUsers,
+      href: "/admin/usuarios?push=1",
+      hint: `${data.pushDevices} dispositivo(s)`,
+    },
   ];
 
   return (
@@ -44,22 +51,22 @@ export default async function AdminHomePage() {
         title="Painel"
         description="Visão geral de publicação e engajamento. Agenda e usuários ficam no menu lateral."
         actions={
-          <Link
-            href="/admin/comunicados/novo"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover"
-          >
+          <ButtonLink href="/admin/comunicados/novo">
             <Icon icon={Plus} />
             Novo comunicado
-          </Link>
+          </ButtonLink>
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {cards.map((card) => (
           <Link key={card.label} href={card.href}>
             <Card className="h-full transition hover:border-accent/30">
               <p className="text-sm text-fg-muted">{card.label}</p>
               <p className="mt-1 text-2xl font-semibold tabular-nums">{card.value}</p>
+              {"hint" in card && card.hint ? (
+                <p className="mt-1 text-xs text-fg-muted">{card.hint}</p>
+              ) : null}
             </Card>
           </Link>
         ))}
