@@ -6,7 +6,13 @@ import { BellRing, Smartphone, Sparkles } from "lucide-react";
 import { appConfig } from "@/config/app";
 import { isEntraConfigured, isLocalDevBypassEnabled } from "@/lib/dev-auth";
 
-export function LoginScreen({ error }: { error?: string | null }) {
+export function LoginScreen({
+  error,
+  success,
+}: {
+  error?: string | null;
+  success?: string | null;
+}) {
   const entra = isEntraConfigured();
   const dev = isLocalDevBypassEnabled();
 
@@ -55,8 +61,14 @@ export function LoginScreen({ error }: { error?: string | null }) {
           <div className="rounded-2xl border border-border/80 bg-surface p-8 shadow">
             <h2 className="text-xl font-bold tracking-tight text-fg">Entrar</h2>
             <p className="mt-1.5 text-sm leading-relaxed text-fg-muted">
-              Use o e-mail e a senha fornecidos pela equipe de comunicação.
+              Use o e-mail corporativo ou o código do funcionário e a senha (temporária no primeiro
+              acesso: METARH#código).
             </p>
+            {success ? (
+              <p className="mt-3 rounded-xl bg-success/10 px-3 py-2 text-sm text-success" role="status">
+                {success}
+              </p>
+            ) : null}
             <div className="mt-6 space-y-4">
               <CredentialsSignInForm error={error} />
               {entra ? (

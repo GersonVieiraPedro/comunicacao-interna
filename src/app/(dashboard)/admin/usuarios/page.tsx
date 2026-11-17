@@ -20,6 +20,9 @@ export default async function AdminUsersPage({
     active: user.active,
     roles: user.roles.map((role) => role.role),
     pushDevices: user._count.pushSubscriptions,
+    codigoFuncionario: user.codigoFuncionario,
+    mustChangePassword: user.mustChangePassword,
+    lastSyncedAt: user.lastSyncedAt,
     contractStatus: user.contractStatus,
     contractType: user.contractType,
     economicGroup: user.economicGroup,
@@ -35,13 +38,13 @@ export default async function AdminUsersPage({
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <PageHeader
         title="Usuários"
-        description="Cadastro, acesso, papéis e quem tem push do navegador ativo."
+        description="Sync ERP diário + gestão de senha, papéis e push."
       />
       <form className="flex flex-col gap-3 sm:flex-row sm:items-center" action="/admin/usuarios" method="get">
         <input
           name="q"
           defaultValue={params.q ?? ""}
-          placeholder="Buscar por nome ou e-mail…"
+          placeholder="Buscar por nome, e-mail ou código…"
           className="min-h-11 flex-1 rounded-full border border-border bg-bg px-4 text-sm outline-none focus:border-accent"
         />
         <label className="inline-flex min-h-11 items-center justify-center gap-2 text-sm text-fg sm:justify-start">

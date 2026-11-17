@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
   actionCreateUser,
+  actionResetUserPassword,
   actionToggleUserActive,
   actionUpdateUser,
 } from "@/features/users/actions";
@@ -20,6 +21,9 @@ type ManagedUser = {
   active: boolean;
   roles: string[];
   pushDevices: number;
+  codigoFuncionario?: number | null;
+  mustChangePassword?: boolean;
+  lastSyncedAt?: Date | string | null;
   contractStatus?: string | null;
   contractType?: string | null;
   economicGroup?: string | null;
@@ -48,7 +52,29 @@ function defaultProfileRole(user?: ManagedUser) {
   return AppRole.COLLABORATOR;
 }
 
-function HrFields({ user }: { user?: ManagedUser }) {
+function isErpSynced(user?: ManagedUser) {
+  return user?.codigoFuncionario != null;
+}
+
+function HrFields({ user, readOnly }: { user?: ManagedUser; readOnly?: boolean }) {
+  if (readOnly && user) {
+    return (
+      <div className="sm:col-span-2 grid gap-2 rounded-xl border border-border bg-muted/40 p-3 text-sm">
+        <p className="font-medium text-fg">Dados RH (ERP — somente leitura)</p>
+        <p className="text-fg-muted">
+          Status: {user.contractStatus ?? "—"} · Tipo: {user.contractType ?? "—"}
+        </p>
+        <p className="text-fg-muted">Grupo: {user.economicGroup ?? "—"}</p>
+        <p className="text-fg-muted">
+          CNPJ: {user.cnpj ?? "—"} · Cliente: {user.clientOrgId ?? "—"}
+        </p>
+        <p className="text-fg-muted">
+          Plano: {user.healthPlan ?? "—"} · Reembolso: {user.reimbursementCard ?? "—"}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <>
       <label className="flex flex-col gap-1 text-sm text-fg">
@@ -115,7 +141,7 @@ export function UserAdminPanel({
         setError(result.message ?? "Não foi possível salvar.");
         return;
       }
-      setMessage(success);
+      setMessage(result.message ?? success);
       setEditingId(null);
       router.refresh();
     });
@@ -134,7 +160,10 @@ export function UserAdminPanel({
       </Card>
 
       <Card>
-        <h2 className="text-sm font-semibold text-fg">Novo usuário</h2>
+        <h2 className="text-sm font-semibold text-fg">Novo usuário (manual)</h2>
+        <p className="mt-1 text-xs text-fg-muted">
+          Colaboradores do ERP entram pelo sync diário. Use isto para CLIENT/METARH ou exceções.
+        </p>
         <form
           className="mt-4 grid gap-3 sm:grid-cols-2"
           onSubmit={(event) => {
@@ -188,6 +217,7 @@ export function UserAdminPanel({
       <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
         {users.map((user) => {
           const editing = editingId === user.id;
+          const synced = isErpSynced(user);
           return (
             <li key={user.id} className="px-4 py-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -198,6 +228,12 @@ export function UserAdminPanel({
                       {user.active ? "Ativo" : "Inativo"}
                     </Badge>
                     <Badge tone="info">{profileLabel(user)}</Badge>
+                    {synced ? (
+                      <Badge tone="neutral">{`ERP #${user.codigoFuncionario}`}</Badge>
+                    ) : null}
+                    {user.mustChangePassword ? (
+                      <Badge tone="warning">Trocar senha</Badge>
+                    ) : null}
                     <Badge tone={user.pushDevices > 0 ? "success" : "neutral"}>
                       {user.pushDevices > 0 ? `Push · ${user.pushDevices} disp.` : "Sem push"}
                     </Badge>
@@ -216,6 +252,20 @@ export function UserAdminPanel({
                   >
                     {editing ? "Fechar" : "Editar"}
                   </Button>
+                  {synced ? (
+                    <Button
+                      variant="secondary"
+                      disabled={pending}
+                      onClick={() =>
+                        run(
+                          () => actionResetUserPassword(user.id),
+                          "Senha resetada para o padrão temporário.",
+                        )
+                      }
+                    >
+                      Resetar senha
+                    </Button>
+                  ) : null}
                   <Button
                     variant={user.active ? "danger" : "secondary"}
                     disabled={pending}
@@ -242,7 +292,19 @@ export function UserAdminPanel({
                     run(() => actionUpdateUser(formData), "Usuário atualizado.");
                   }}
                 >
-                  <Input name="displayName" label="Nome" defaultValue={user.displayName} required />
+                  {synced ? (
+                    <>
+                      <input type="hidden" name="displayName" value={user.displayName} />
+                      <Input label="Nome (ERP)" defaultValue={user.displayName} disabled />
+                    </>
+                  ) : (
+                    <Input
+                      name="displayName"
+                      label="Nome"
+                      defaultValue={user.displayName}
+                      required
+                    />
+                  )}
                   <Input
                     name="password"
                     label="Nova senha (opcional)"
@@ -264,7 +326,7 @@ export function UserAdminPanel({
                       <option value={AppRole.CANDIDATE}>Candidato</option>
                     </select>
                   </label>
-                  <HrFields user={user} />
+                  <HrFields user={user} readOnly={synced} />
                   <div className="sm:col-span-2">
                     <ActionBar>
                       <Button type="submit" disabled={pending}>

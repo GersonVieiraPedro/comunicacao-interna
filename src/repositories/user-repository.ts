@@ -17,6 +17,24 @@ export async function findUserByEmail(email: string) {
   });
 }
 
+export async function findUserByCodigoFuncionario(codigo: number) {
+  return prisma.user.findUnique({
+    where: { codigoFuncionario: codigo },
+    include: { roles: true },
+  });
+}
+
+/** Resolve login por e-mail ou código numérico do funcionário. */
+export async function findUserByLogin(login: string) {
+  const trimmed = login.trim();
+  if (!trimmed) return null;
+  if (/^\d+$/.test(trimmed)) {
+    const byCode = await findUserByCodigoFuncionario(Number(trimmed));
+    if (byCode) return byCode;
+  }
+  return findUserByEmail(trimmed.toLowerCase());
+}
+
 export async function findUserById(id: string) {
   return prisma.user.findUnique({
     where: { id },
@@ -34,6 +52,7 @@ export async function listUsers(filters?: { q?: string; activeOnly?: boolean }) 
             OR: [
               { email: { contains: q } },
               { displayName: { contains: q } },
+              ...(/^\d+$/.test(q) ? [{ codigoFuncionario: Number(q) }] : []),
             ],
           }
         : {}),
@@ -149,14 +168,40 @@ export async function createManagedUser(input: {
 
 export async function updateOwnProfile(
   id: string,
-  data: { displayName?: string; passwordHash?: string },
+  data: {
+    displayName?: string;
+    passwordHash?: string;
+    mustChangePassword?: boolean;
+    passwordUpdatedAt?: Date | null;
+  },
 ) {
   return prisma.user.update({
     where: { id },
     data: {
       ...(data.displayName !== undefined ? { displayName: data.displayName.trim() } : {}),
       ...(data.passwordHash !== undefined ? { passwordHash: data.passwordHash } : {}),
+      ...(data.mustChangePassword !== undefined
+        ? { mustChangePassword: data.mustChangePassword }
+        : {}),
+      ...(data.passwordUpdatedAt !== undefined
+        ? { passwordUpdatedAt: data.passwordUpdatedAt }
+        : {}),
     },
+  });
+}
+
+export async function resetUserTempPassword(
+  id: string,
+  passwordHash: string,
+) {
+  return prisma.user.update({
+    where: { id },
+    data: {
+      passwordHash,
+      mustChangePassword: true,
+      passwordUpdatedAt: null,
+    },
+    include: { roles: true },
   });
 }
 
@@ -203,7 +248,13 @@ export async function updateManagedUser(
       data: {
         ...(data.displayName !== undefined ? { displayName: data.displayName.trim() } : {}),
         ...(data.active !== undefined ? { active: data.active } : {}),
-        ...(data.passwordHash !== undefined ? { passwordHash: data.passwordHash } : {}),
+        ...(data.passwordHash !== undefined
+          ? {
+              passwordHash: data.passwordHash,
+              mustChangePassword: false,
+              passwordUpdatedAt: new Date(),
+            }
+          : {}),
         ...(data.contractStatus !== undefined ? { contractStatus: data.contractStatus } : {}),
         ...(data.contractType !== undefined ? { contractType: data.contractType } : {}),
         ...(data.economicGroup !== undefined ? { economicGroup: data.economicGroup } : {}),

@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+  if (session.user.mustChangePassword) redirect("/trocar-senha");
 
   // Não bloquear navegação: agenda/fila rodam depois da resposta.
   after(() => {

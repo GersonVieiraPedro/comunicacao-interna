@@ -12,6 +12,7 @@ import {
   findUserByEmail,
   findUserByEntraId,
   findUserById,
+  findUserByLogin,
   upsertEntraUser,
 } from "@/repositories/user-repository";
 import type { SessionUser } from "@/lib/authz";
@@ -40,6 +41,8 @@ function toSessionUser(stored: {
   displayName: string;
   active: boolean;
   contractStatus?: string | null;
+  mustChangePassword?: boolean;
+  codigoFuncionario?: number | null;
   roles: Array<{ role: string }>;
 }): SessionUser | null {
   if (!stored.active) return null;
@@ -55,6 +58,8 @@ function toSessionUser(stored: {
     roles,
     contractStatus: stored.contractStatus ?? null,
     effectiveRole,
+    mustChangePassword: Boolean(stored.mustChangePassword),
+    codigoFuncionario: stored.codigoFuncionario ?? null,
   };
 }
 
@@ -79,6 +84,7 @@ export async function syncLocalDevUser(persona: LocalDevPersona): Promise<Sessio
       roles,
       contractStatus: "ACTIVE",
       effectiveRole: resolveEffectiveRole({ roles, contractStatus: "ACTIVE" }),
+      mustChangePassword: false,
     };
   }
   return toSessionUser(stored)!;
@@ -100,6 +106,7 @@ export async function syncSessionUser(input: {
       name: input.displayName,
       roles,
       effectiveRole: resolveEffectiveRole({ roles, contractStatus: "ACTIVE" }),
+      mustChangePassword: false,
     };
   }
   return toSessionUser(stored)!;
@@ -125,14 +132,14 @@ export async function resolveSessionUser(input: {
   return null;
 }
 
-/** Login interno e-mail/senha. Retorna null se inválido (mensagem genérica no Auth.js). */
+/** Login interno: e-mail ou código do funcionário + senha. */
 export async function authenticatePasswordUser(
-  email: string,
+  login: string,
   password: string,
 ): Promise<SessionUser | null> {
-  const normalized = email.trim().toLowerCase();
+  const normalized = login.trim();
   if (!normalized || !password) return null;
-  const stored = await findUserByEmail(normalized);
+  const stored = await findUserByLogin(normalized);
   if (!stored?.passwordHash || !stored.active) return null;
   const ok = await verifyPassword(password, stored.passwordHash);
   if (!ok) return null;

@@ -62,7 +62,7 @@ Módulos:
 
 | Feature | Responsabilidade |
 | --- | --- |
-| identity | User, papéis, sync Entra |
+| identity | User, papéis, sync Entra + sync ERP (ADR-011) |
 | communications | ciclo de vida, busca, métricas |
 | reads | visualização binária |
 | notifications | sino in-app |
@@ -77,6 +77,7 @@ Módulos:
 ## Banco (schema, isolation)
 
 - Schema lógico: **`comunicacao`** (já definido no bootstrap; padrão fábrica `schema_<app>`). Não usar `dbo` para tabelas desta app.
+- Fonte ERP (somente leitura): `dbo.*` via ETL ADF + view `alocados.employees`. Sync → `comunicacao.users` por `codigoFuncionario` (sem FK à view). Ver ADR-011 e `docs/erp-sync-adf.md`.
 - Dev: Docker SQL Server do template; database `comunicacao-interna_dev`; testes em instância/db separados.
 - Produção: um Azure SQL compartilhado da fábrica; credencial **somente** neste schema.
 - Enums Prisma: **não**. Status, prioridade, papéis, audience, canais: `String` + constantes TypeScript.
@@ -122,6 +123,7 @@ Config institucional: `src/config/institutional.ts`, contatos CS e pesquisas via
 Públicas: `/login`, `/auth/*`, `/api/auth/*`, `GET /api/health`, assets PWA (`/manifest.webmanifest`, service worker, ícones).
 
 Protegidas (sessão): home, comunicados, histórico, configurações, sino, APIs de negócio, `/admin/*`.
+Login interno: e-mail **ou** `codigoFuncionario`. Se `mustChangePassword`, só `/trocar-senha` (e logout) até trocar (ADR-011).
 
 `/admin/**`: papel efetivo `METARH` no **layout e em cada Server Action/service**. Demais perfis recebem 403.
 

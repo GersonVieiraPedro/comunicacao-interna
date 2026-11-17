@@ -3,7 +3,7 @@
 **App:** `comunicacao-interna`  
 **Hipótese:** central única autenticada para comunicados MetaRH, com quatro perfis (METARH, Cliente, Colaborador, Candidato), segmentação no disparo e canais institucionais (redes, site, YouTube, CS, FAQ, pesquisas, Selecty).  
 **Status Product:** evoluído (ADR-010 — perfis e audiência filtrada).  
-**Premissas:** auth interno no piloto (Entra opcional); atributos de contrato/RH no banco local até existir sync; URLs institucionais alinhadas a metarh.com.br / Selecty.
+**Premissas:** auth interno no piloto (Entra opcional); usuários sincronizados do ERP (`alocados.employees`, ADR-011); URLs institucionais alinhadas a metarh.com.br / Selecty.
 
 ## Problema
 
@@ -35,6 +35,9 @@ Papéis persistidos: `METARH` | `CLIENT` | `COLLABORATOR` | `CANDIDATE` (`COMMUN
 ### Autenticação e acesso
 
 - Login Auth.js (interno no piloto; Entra opcional)
+- Login por **e-mail** ou **código do funcionário** (ERP)
+- Senha temporária no sync (`METARH#{codigo}`) com troca obrigatória no primeiro acesso
+- Sync diário pós-ETL (ativos + demitidos ≤ 5 anos); METARH gerencia senha/reset, bloqueio e papéis METARH/CLIENT
 - Quatro perfis com menus e homes distintos
 - METARH: `/admin` (disparo, filtros, painel, usuários/contratos)
 - Cliente / Colaborador / Candidato: superfícies de consumo conforme matriz (sem `/admin`)

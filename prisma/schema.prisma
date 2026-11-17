@@ -15,8 +15,14 @@ model User {
   entraObjectId String   @unique
   email         String   @unique
   displayName   String
-  /// bcrypt hash; null = só SSO / bypass local sem senha
+  /// Código ERP (TB_Funcionario); vínculo lógico com alocados.employees — sem FK à view
+  codigoFuncionario Int? @unique
+  /// bcrypt hash; null = só SSO / bypass local sem senha / aguardando bootstrap ERP
   passwordHash  String?
+  /// true = obrigatório trocar senha antes de usar o app
+  mustChangePassword Boolean @default(false)
+  passwordUpdatedAt DateTime?
+  lastSyncedAt  DateTime?
   /// false = sem acesso (login bloqueado)
   active        Boolean  @default(true)
   /// ACTIVE | INACTIVE | NONE — sem ACTIVE → perfil efetivo CANDIDATE (exceto METARH/CLIENT)
@@ -45,6 +51,7 @@ model User {
   @@index([cnpj])
   @@index([economicGroup])
   @@index([clientOrgId])
+  @@index([mustChangePassword])
   @@map("users")
   @@schema("comunicacao")
 }

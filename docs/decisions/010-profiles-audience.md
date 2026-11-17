@@ -17,9 +17,9 @@ Não há integração ERP/folha neste ciclo.
 1. **Papéis persistidos:** `METARH` | `CLIENT` | `COLLABORATOR` | `CANDIDATE`.
    - `METARH` substitui `COMMUNICATOR` (migração de dados: string de papel).
    - Alias de leitura: valores legados `COMMUNICATOR` normalizam para `METARH`.
-2. **Atributos de RH no `User` (local):** `contractStatus`, `contractType`, `economicGroup`,
-   `cnpj`, `healthPlan`, `reimbursementCard`, `clientOrgId`. Editáveis pelo perfil METARH.
-   Sync externo fica fora de escopo.
+2. **Atributos de RH no `User`:** `contractStatus`, `contractType`, `economicGroup`,
+   `cnpj`, `healthPlan`, `reimbursementCard`, `clientOrgId`. Sync ERP em ADR-011;
+   METARH edita papéis/senha; RH do ERP fica read-only na UI quando sincronizado.
 3. **Perfil efetivo:** se `contractStatus` ≠ `ACTIVE` (ou nulo quando o papel base não é METARH/CLIENT),
    o perfil efetivo de consumo é `CANDIDATE`.
 4. **Audiência:** `ALL` | `FILTERED`. Critérios em `communication_targets` com

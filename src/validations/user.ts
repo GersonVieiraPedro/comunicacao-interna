@@ -4,7 +4,10 @@ import { AppRole, ContractStatus, ContractType } from "@/types/roles";
 export const passwordSchema = z
   .string()
   .min(8, "Senha com pelo menos 8 caracteres.")
-  .max(128, "Senha muito longa.");
+  .max(128, "Senha muito longa.")
+  .refine((value) => /[A-Za-z]/.test(value) && /[0-9]/.test(value), {
+    message: "Senha deve ter letra e número.",
+  });
 
 const roleEnum = z.enum([
   AppRole.METARH,
@@ -60,6 +63,22 @@ export const updateProfileSchema = z
     { message: "Informe a senha atual para trocar a senha.", path: ["currentPassword"] },
   );
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Informe a senha atual.").max(128),
+    newPassword: passwordSchema,
+    confirmPassword: z.string().min(1).max(128),
+  })
+  .refine((value) => value.newPassword === value.confirmPassword, {
+    message: "Confirmação não confere.",
+    path: ["confirmPassword"],
+  })
+  .refine((value) => value.newPassword !== value.currentPassword, {
+    message: "A nova senha deve ser diferente da atual.",
+    path: ["newPassword"],
+  });
+
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

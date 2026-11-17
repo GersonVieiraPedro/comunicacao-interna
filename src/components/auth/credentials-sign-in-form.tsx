@@ -47,13 +47,13 @@ export function CredentialsSignInForm({ error }: { error?: string | null }) {
         id="email"
         name="email"
         type="text"
-        inputMode="email"
+        inputMode="text"
         autoCapitalize="none"
         autoCorrect="off"
-        label="E-mail"
+        label="Usuário"
         autoComplete="username"
         required
-        placeholder="voce@empresa.com"
+        placeholder="e-mail ou código do funcionário"
       />
       <Input
         id="password"
@@ -63,7 +63,7 @@ export function CredentialsSignInForm({ error }: { error?: string | null }) {
         autoComplete="current-password"
         required
         minLength={5}
-        error={error ? "E-mail ou senha inválidos." : undefined}
+        error={error ? "Usuário ou senha inválidos." : undefined}
       />
       <Button type="submit" className="w-full">
         Entrar

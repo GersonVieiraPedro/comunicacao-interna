@@ -20,6 +20,8 @@ declare module "next-auth" {
     roles?: SessionUser["roles"];
     contractStatus?: SessionUser["contractStatus"];
     effectiveRole?: SessionUser["effectiveRole"];
+    mustChangePassword?: boolean;
+    codigoFuncionario?: number | null;
   }
 }
 
@@ -38,19 +40,19 @@ function localPersona(value: unknown): LocalDevPersona {
 
 const credentialsProvider = Credentials({
   id: "credentials",
-  name: "E-mail e senha",
+  name: "Usuário e senha",
   credentials: {
-    email: { label: "E-mail", type: "email" },
+    email: { label: "Usuário", type: "text" },
     password: { label: "Senha", type: "password" },
   },
   async authorize(credentials) {
-    const email = typeof credentials?.email === "string" ? credentials.email : "";
+    const login = typeof credentials?.email === "string" ? credentials.email : "";
     const password = typeof credentials?.password === "string" ? credentials.password : "";
     try {
-      const user = await authenticatePasswordUser(email, password);
+      const user = await authenticatePasswordUser(login, password);
       if (!user) {
         logger.warn("credentials_signin_rejected", {
-          email: email.trim().toLowerCase().slice(0, 120) || "(vazio)",
+          login: login.trim().toLowerCase().slice(0, 120) || "(vazio)",
         });
         return null;
       }
@@ -61,6 +63,8 @@ const credentialsProvider = Credentials({
         roles: user.roles,
         contractStatus: user.contractStatus,
         effectiveRole: user.effectiveRole,
+        mustChangePassword: user.mustChangePassword,
+        codigoFuncionario: user.codigoFuncionario,
       };
     } catch (error) {
       logger.error("credentials_authorize_failed", {
@@ -105,6 +109,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           roles: user.roles?.length ? user.roles : [AppRole.COLLABORATOR],
           contractStatus: user.contractStatus ?? null,
           effectiveRole: user.effectiveRole,
+          mustChangePassword: Boolean(user.mustChangePassword),
+          codigoFuncionario: user.codigoFuncionario ?? null,
         };
         return typed;
       }
@@ -192,6 +198,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           roles: appUser.roles?.length ? appUser.roles : [AppRole.COLLABORATOR],
           contractStatus: appUser.contractStatus ?? null,
           effectiveRole: appUser.effectiveRole,
+          mustChangePassword: Boolean(appUser.mustChangePassword),
+          codigoFuncionario: appUser.codigoFuncionario ?? null,
         };
         return session;
       }

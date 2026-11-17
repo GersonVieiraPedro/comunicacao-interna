@@ -13,6 +13,8 @@ export type SessionUser = {
   roles: Role[];
   contractStatus?: string | null;
   effectiveRole?: Role;
+  mustChangePassword?: boolean;
+  codigoFuncionario?: number | null;
 };
 
 export function requireUser(user: SessionUser | undefined): SessionUser {

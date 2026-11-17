@@ -9,16 +9,20 @@ import {
   resolveEffectiveRole,
   type AppRole as Role,
 } from "@/types/roles";
+import { prisma } from "@/lib/db";
+import { tempPasswordForCodigo } from "@/lib/temp-password";
 import {
   createManagedUser,
   findUserByEmail,
   findUserById,
   listUsers,
   normalizeRoles,
+  resetUserTempPassword,
   updateManagedUser,
   updateOwnProfile,
 } from "@/repositories/user-repository";
 import {
+  changePasswordSchema,
   createUserSchema,
   updateProfileSchema,
   updateUserSchema,
@@ -136,6 +140,9 @@ export async function updateProfile(user: SessionUser | undefined, raw: unknown)
   await updateOwnProfile(actor.id, {
     displayName: parsed.displayName,
     passwordHash,
+    ...(passwordHash
+      ? { mustChangePassword: false, passwordUpdatedAt: new Date() }
+      : {}),
   });
   const refreshed = await findUserById(actor.id);
   if (!refreshed) throw new NotFoundError("Usuário não encontrado.");
@@ -152,6 +159,8 @@ export async function getProfile(user: SessionUser | undefined) {
     displayName: stored.displayName,
     active: stored.active,
     hasPassword: Boolean(stored.passwordHash),
+    mustChangePassword: stored.mustChangePassword,
+    codigoFuncionario: stored.codigoFuncionario,
     roles: canonicalizeRoles(stored.roles.map((item) => item.role).filter(isAppRole)),
     contractStatus: stored.contractStatus,
     contractType: stored.contractType,
@@ -161,5 +170,74 @@ export async function getProfile(user: SessionUser | undefined) {
       roles: canonicalizeRoles(stored.roles.map((item) => item.role).filter(isAppRole)),
       contractStatus: stored.contractStatus,
     }),
+  };
+}
+
+export async function changeOwnPassword(user: SessionUser | undefined, raw: unknown) {
+  const actor = requireUser(user);
+  const parsed = changePasswordSchema.parse(raw);
+  const stored = await findUserById(actor.id);
+  if (!stored) throw new NotFoundError("Usuário não encontrado.");
+  if (!stored.active) throw new ValidationError("Conta desativada.");
+  if (!stored.passwordHash) throw new ValidationError("Esta conta não usa senha local.");
+
+  const ok = await verifyPassword(parsed.currentPassword, stored.passwordHash);
+  if (!ok) throw new ValidationError("Senha atual incorreta.");
+
+  if (stored.codigoFuncionario != null) {
+    const temp = tempPasswordForCodigo(stored.codigoFuncionario);
+    if (parsed.newPassword === temp) {
+      throw new ValidationError("Escolha uma senha diferente da temporária.");
+    }
+  }
+
+  const passwordHash = await hashPassword(parsed.newPassword);
+  await updateOwnProfile(actor.id, {
+    passwordHash,
+    mustChangePassword: false,
+    passwordUpdatedAt: new Date(),
+  });
+
+  await prisma.auditEvent.create({
+    data: {
+      action: "PASSWORD_CHANGED",
+      actorUserId: actor.id,
+      metadata: JSON.stringify({ self: true }),
+    },
+  });
+
+  return { ok: true as const };
+}
+
+/** Reset admin: volta à senha temp METARH#{codigo} (ou e-mail sintético se sem código). */
+export async function resetUserPassword(actor: SessionUser | undefined, userId: string) {
+  const admin = requireMetarh(actor);
+  const stored = await findUserById(userId);
+  if (!stored) throw new NotFoundError("Usuário não encontrado.");
+
+  const plain =
+    stored.codigoFuncionario != null
+      ? tempPasswordForCodigo(stored.codigoFuncionario)
+      : `METARH#${stored.email.split("@")[0] ?? "temp"}`;
+  const passwordHash = await hashPassword(plain);
+  await resetUserTempPassword(stored.id, passwordHash);
+
+  await prisma.auditEvent.create({
+    data: {
+      action: "PASSWORD_RESET",
+      actorUserId: admin.id,
+      metadata: JSON.stringify({
+        targetUserId: stored.id,
+        codigoFuncionario: stored.codigoFuncionario,
+      }),
+    },
+  });
+
+  return {
+    ok: true as const,
+    tempPasswordHint:
+      stored.codigoFuncionario != null
+        ? `METARH#${stored.codigoFuncionario}`
+        : "Padrão temporário aplicado (sem código ERP).",
   };
 }
