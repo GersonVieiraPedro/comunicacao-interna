@@ -40,10 +40,15 @@ export default async function AdminListPage({
         title="Comunicados"
         actions={
           <>
+            <ButtonLink href="/historico" variant="secondary">
+              Histórico
+            </ButtonLink>
             <ButtonLink href="/admin/agenda" variant="secondary">
               Agenda
             </ButtonLink>
-            <ButtonLink href="/admin/comunicados/novo">Novo</ButtonLink>
+            <ButtonLink href="/admin/comunicados/novo">
+              Novo
+            </ButtonLink>
           </>
         }
       />
