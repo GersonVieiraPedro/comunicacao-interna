@@ -42,32 +42,89 @@ export async function findUserById(id: string) {
   });
 }
 
-export async function listUsers(filters?: { q?: string; activeOnly?: boolean }) {
+export type ListUsersFilters = {
+  q?: string;
+  activeOnly?: boolean;
+  /** active | inactive — mais específico que activeOnly */
+  status?: "all" | "active" | "inactive";
+  role?: "all" | Role;
+  push?: "all" | "yes" | "no";
+  source?: "all" | "erp" | "manual";
+  contractType?: "all" | "TEMPORARY" | "THIRD_PARTY" | "none";
+  page?: number;
+  pageSize?: number;
+};
+
+function buildUserListWhere(filters?: ListUsersFilters) {
   const q = filters?.q?.trim();
-  return prisma.user.findMany({
-    where: {
-      ...(filters?.activeOnly ? { active: true } : {}),
-      ...(q
-        ? {
-            OR: [
-              { email: { contains: q } },
-              { displayName: { contains: q } },
-              ...(/^\d+$/.test(q) ? [{ codigoFuncionario: Number(q) }] : []),
-            ],
-          }
-        : {}),
-    },
-    include: {
-      roles: true,
-      _count: {
-        select: {
-          pushSubscriptions: { where: { active: true } },
+  const status = filters?.status ?? (filters?.activeOnly ? "active" : "all");
+  const role = filters?.role ?? "all";
+  const push = filters?.push ?? "all";
+  const source = filters?.source ?? "all";
+  const contractType = filters?.contractType ?? "all";
+  const and: Array<Record<string, unknown>> = [];
+
+  if (status === "active") and.push({ active: true });
+  if (status === "inactive") and.push({ active: false });
+  if (role !== "all") and.push({ roles: { some: { role } } });
+  if (push === "yes") and.push({ pushSubscriptions: { some: { active: true } } });
+  if (push === "no") and.push({ pushSubscriptions: { none: { active: true } } });
+  if (source === "erp") and.push({ codigoFuncionario: { not: null } });
+  if (source === "manual") and.push({ codigoFuncionario: null });
+  if (contractType === "TEMPORARY" || contractType === "THIRD_PARTY") {
+    and.push({ contractType });
+  }
+  if (contractType === "none") {
+    and.push({ OR: [{ contractType: null }, { contractType: "" }] });
+  }
+  if (q) {
+    and.push({
+      OR: [
+        { email: { contains: q } },
+        { displayName: { contains: q } },
+        ...(/^\d+$/.test(q) ? [{ codigoFuncionario: Number(q) }] : []),
+      ],
+    });
+  }
+
+  return and.length ? { AND: and } : {};
+}
+
+export async function listUsers(filters?: ListUsersFilters) {
+  const page = Math.max(1, filters?.page ?? 1);
+  const pageSize = Math.min(100, Math.max(1, filters?.pageSize ?? 25));
+  const where = buildUserListWhere(filters);
+
+  const [items, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      include: {
+        roles: true,
+        _count: {
+          select: {
+            pushSubscriptions: { where: { active: true } },
+          },
         },
       },
-    },
-    orderBy: { displayName: "asc" },
-    take: 200,
+      orderBy: [{ displayName: "asc" }, { email: "asc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return { items, total, page, pageSize };
+}
+
+/** @deprecated use listUsers — mantido para callers que esperavam array */
+export async function listUsersLegacy(filters?: { q?: string; activeOnly?: boolean }) {
+  const result = await listUsers({
+    q: filters?.q,
+    activeOnly: filters?.activeOnly,
+    page: 1,
+    pageSize: 200,
   });
+  return result.items;
 }
 
 export async function countActiveUsers() {

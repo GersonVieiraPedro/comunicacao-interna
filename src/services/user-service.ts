@@ -55,9 +55,46 @@ function parseRoles(raw: unknown): Role[] {
   return normalizeRoles(roles.length ? roles : [AppRole.COLLABORATOR]);
 }
 
-export async function listManagedUsers(user: SessionUser | undefined, q?: string) {
+export async function listManagedUsers(
+  user: SessionUser | undefined,
+  filters?: {
+    q?: string;
+    page?: number;
+    pageSize?: number;
+    status?: "all" | "active" | "inactive";
+    role?: "all" | Role;
+    push?: "all" | "yes" | "no";
+    source?: "all" | "erp" | "manual";
+    contractType?: "all" | "TEMPORARY" | "THIRD_PARTY" | "none";
+  },
+) {
   requireMetarh(user);
-  return listUsers({ q });
+  const result = await listUsers({
+    q: filters?.q,
+    page: filters?.page,
+    pageSize: filters?.pageSize,
+    status: filters?.status,
+    role: filters?.role,
+    push: filters?.push,
+    source: filters?.source,
+    contractType: filters?.contractType,
+  });
+
+  const [pushEnabledCount, activeCount] = await Promise.all([
+    prisma.user.count({
+      where: {
+        active: true,
+        pushSubscriptions: { some: { active: true } },
+      },
+    }),
+    prisma.user.count({ where: { active: true } }),
+  ]);
+
+  return {
+    ...result,
+    pushEnabledCount,
+    activeCount,
+  };
 }
 
 export async function createUser(user: SessionUser | undefined, raw: unknown) {

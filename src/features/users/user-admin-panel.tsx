@@ -122,15 +122,25 @@ function HrFields({ user, readOnly }: { user?: ManagedUser; readOnly?: boolean }
 export function UserAdminPanel({
   users,
   pushEnabledCount = 0,
+  activeCount = 0,
+  filteredTotal = 0,
+  page = 1,
+  pageSize = 25,
 }: {
   users: ManagedUser[];
   pushEnabledCount?: number;
+  activeCount?: number;
+  filteredTotal?: number;
+  page?: number;
+  pageSize?: number;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const rangeFrom = filteredTotal === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeTo = Math.min(page * pageSize, filteredTotal);
 
   function run(action: () => Promise<{ ok: boolean; message?: string }>, success: string) {
     setMessage(null);
@@ -149,15 +159,26 @@ export function UserAdminPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <p className="text-sm text-fg-muted">Push Web ativo</p>
-        <p className="mt-1 text-2xl font-semibold tabular-nums">
-          {pushEnabledCount}
-          <span className="ml-2 text-sm font-medium text-fg-muted">
-            de {users.filter((user) => user.active).length} ativos nesta lista
-          </span>
-        </p>
-      </Card>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card>
+          <p className="text-sm text-fg-muted">Neste filtro</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums">{filteredTotal}</p>
+          <p className="mt-1 text-xs text-fg-muted">
+            Exibindo {rangeFrom}–{rangeTo}
+          </p>
+        </Card>
+        <Card>
+          <p className="text-sm text-fg-muted">Ativos (base)</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums">{activeCount}</p>
+        </Card>
+        <Card>
+          <p className="text-sm text-fg-muted">Push Web ativo</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums">
+            {pushEnabledCount}
+            <span className="ml-2 text-sm font-medium text-fg-muted">de {activeCount} ativos</span>
+          </p>
+        </Card>
+      </div>
 
       <Card>
         <h2 className="text-sm font-semibold text-fg">Novo usuário (manual)</h2>
@@ -212,6 +233,15 @@ export function UserAdminPanel({
         <p className="text-sm text-danger" role="alert">
           {error}
         </p>
+      ) : null}
+
+      {users.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-surface px-4 py-10 text-center">
+          <p className="font-medium text-fg">Nenhum usuário encontrado</p>
+          <p className="mt-1 text-sm text-fg-muted">
+            Ajuste a busca ou os filtros. A lista é paginada no servidor (não carrega os 5 mil de uma vez).
+          </p>
+        </div>
       ) : null}
 
       <ul className="divide-y divide-border rounded-lg border border-border bg-surface">

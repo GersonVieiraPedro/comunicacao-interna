@@ -77,7 +77,7 @@ Módulos:
 ## Banco (schema, isolation)
 
 - Schema lógico: **`comunicacao`** (já definido no bootstrap; padrão fábrica `schema_<app>`). Não usar `dbo` para tabelas desta app.
-- Fonte ERP (somente leitura): `dbo.*` via ETL ADF + view `alocados.employees`. Sync → `comunicacao.users` por `codigoFuncionario` (sem FK à view). Ver ADR-011 e `docs/erp-sync-adf.md`.
+- Fonte ERP (somente leitura): `dbo.*` via ETL ADF + view `alocados.employees`. Sync → `comunicacao.users` por `codigoFuncionario` (sem FK à view). Ver ADR-011, `docs/erp-user-sync.md` (operação/manutenção) e `docs/erp-sync-adf.md`.
 - Dev: Docker SQL Server do template; database `comunicacao-interna_dev`; testes em instância/db separados.
 - Produção: um Azure SQL compartilhado da fábrica; credencial **somente** neste schema.
 - Enums Prisma: **não**. Status, prioridade, papéis, audience, canais: `String` + constantes TypeScript.

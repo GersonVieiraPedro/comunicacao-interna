@@ -78,7 +78,27 @@ export const changePasswordSchema = z
     path: ["newPassword"],
   });
 
+/** Filtros da lista admin `/admin/usuarios` (server-side, ~5k usuários ERP). */
+export const listUsersQuerySchema = z.object({
+  q: z.string().trim().max(120).optional().default(""),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+  /** all | active | inactive */
+  status: z.enum(["all", "active", "inactive"]).default("all"),
+  /** all | METARH | CLIENT | COLLABORATOR | CANDIDATE */
+  role: z.enum(["all", AppRole.METARH, AppRole.CLIENT, AppRole.COLLABORATOR, AppRole.CANDIDATE]).default("all"),
+  /** all | yes | no */
+  push: z.enum(["all", "yes", "no"]).default("all"),
+  /** all | erp | manual */
+  source: z.enum(["all", "erp", "manual"]).default("all"),
+  /** all | TEMPORARY | THIRD_PARTY | none */
+  contractType: z
+    .enum(["all", ContractType.TEMPORARY, ContractType.THIRD_PARTY, "none"])
+    .default("all"),
+});
+
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;

@@ -5,7 +5,13 @@ import { logger } from "@/lib/logger";
 
 /** Executa a procedure MERGE (SQL Server). */
 export async function runErpUserMergeProcedure() {
-  await prisma.$executeRawUnsafe(`EXEC [comunicacao].[usp_SyncUsersFromErp]`);
+  try {
+    await prisma.$executeRawUnsafe(`EXEC [comunicacao].[usp_SyncUsersFromErp]`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error("erp_merge_procedure_failed", { message: message.slice(0, 400) });
+    throw error;
+  }
 }
 
 /**
@@ -47,6 +53,6 @@ export async function syncErpUsers(options?: { bootstrapPasswords?: boolean; pas
   const passwords =
     options?.bootstrapPasswords === false
       ? { updated: 0, scanned: 0 }
-      : await bootstrapErpTempPasswords(options?.passwordBatch ?? 2000);
+      : await bootstrapErpTempPasswords(options?.passwordBatch ?? 100);
   return { merge: true as const, passwords };
 }
